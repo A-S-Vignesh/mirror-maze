@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+dist-android/
+dist-all/
+web-build/
+*.log
+.env*
+.tools/
+android/
+ios/
+*.apk
+*.aab
+*.keystore
+.solve-tmp.ts

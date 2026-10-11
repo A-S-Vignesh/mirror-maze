@@ -1,0 +1,266 @@
+import { Mechanic } from './types';
+
+export type ChapterId = 0 | 1 | 2 | 3 | 4;
+export const LEVELS_PER_CHAPTER = 27;
+
+export interface Chapter {
+  id: ChapterId;
+  number: number;
+  title: string;
+  world: string;
+  heart: string;
+  heartColor: string;
+  intro: string[];
+  /** World cleared: the road to the next world opens. */
+  outro: string[];
+  /** Every shard of this world gathered: its Heart is forged into the Amulet. */
+  forge: string[];
+  newMechanics: { icon: string; text: string }[];
+  levels: [string, string][];
+}
+
+export const prologue = [
+  'Long ago, the Great Prism carried light between five worlds.',
+  'Five Hearts burned inside it: Sky, Life, Sun, Frost and Star.',
+  'Then the Void opened its eye.',
+  'The Prism shattered. Every world fell into shadow.',
+  'One Lightkeeper remains. Gather every shard. Forge the Hearts anew.',
+];
+
+export const ending = [
+  'The five Hearts burn as one.',
+  'The Great Prism is whole again, and the Void closes its eye.',
+  'Dawn returns to every world.',
+  'Thank you, Lightkeeper.',
+];
+
+export const chapters: Chapter[] = [
+  {
+    id: 0, number: 1, title: 'The Fallen Sky', world: 'Sky Temples', heart: 'Sky Heart', heartColor: '#ff4fc3',
+    intro: [
+      'Above the clouds, the temples of the sky have gone cold.',
+      'Their mirrors still remember how to bend the light.',
+      'Wake the shrines. Find the Sky Heart.',
+    ],
+    outro: ['The temples of the sky are burning bright again.', 'Far below the clouds, a storm is waiting.'],
+    forge: ['Every sky shard sings as one.', 'The Sky Heart is reborn.'],
+    newMechanics: [
+      { icon: 'sync', text: 'Tap mirrors to turn the light' },
+      { icon: 'cube', text: 'Stone blocks stop the beam' },
+      { icon: 'diamond', text: 'Light every crystal' },
+      { icon: 'sunny', text: 'Twin suns: two cannons at once' },
+    ],
+    levels: [
+      ['First Light', 'A single mirror. A single spark. Every journey begins here.'],
+      ['The Turning', 'Mirrors listen to those who turn them.'],
+      ['Twin Reflections', 'Two mirrors, one path. Light loves a puzzle.'],
+      ['Stone Guardians', 'Old stones still stand in the light\'s way.'],
+      ['The Unmoving', 'Some mirrors were set by the ancients. Leave them be.'],
+      ['Cloud Steps', 'The first shrine stirs as light returns.'],
+      ['Golden Passage', 'Gold paths once carried pilgrims here.'],
+      ['Whispering Gate', 'The gate remembers the old light.'],
+      ['Shrine of Dawn', 'The first shrine awakens. The sky grows warmer.'],
+      ['Silent Pillars', 'Not every mirror needs your touch.'],
+      ['Wind Corridor', 'Wind howls where the light once flowed.'],
+      ['The Long Bridge', 'A bridge of light between two ruins.'],
+      ['Two Flames', 'Two crystals. One beam. Light them both.'],
+      ['Sunrise Terrace', 'Here the monks greeted every morning.'],
+      ['Echo Chamber', 'Light bounces like a song off the old walls.'],
+      ['Falling Waters', 'The waterfalls glitter as the light returns.'],
+      ['Broken Arch', 'The arch fell, but its mirrors survived.'],
+      ['Shrine of Noon', 'The second shrine wakes. Halfway to the Heart.'],
+      ['Twin Suns', 'A second sun rises. Two cannons, twice the light.'],
+      ['Star Altars', 'The altars wait for the same beam.'],
+      ['Pilgrim\'s Maze', 'The pilgrims got lost here. You won\'t.'],
+      ['Hall of Mirrors', 'So many mirrors. Only some are true.'],
+      ['The Sky Bell', 'When the bell glows, the whole sky hears it.'],
+      ['Eagle\'s Perch', 'The highest temple above the clouds.'],
+      ['Last Pilgrim', 'The final road of the old pilgrims.'],
+      ['Gates of Heaven', 'The Heart is close. You can feel its warmth.'],
+      ['The Sky Heart', 'Restore the Sky Heart!'],
+    ],
+  },
+  {
+    id: 1, number: 2, title: 'The Storm Canopy', world: 'Emerald Rainforest', heart: 'Life Heart', heartColor: '#3dff8a',
+    intro: [
+      'Beneath the clouds, a jungle drowns in an endless storm.',
+      'The Void\'s vines have bound the old mirrors together.',
+      'Turn one, and its twin turns too. Find the Life Heart.',
+    ],
+    outro: ['The storm breaks. Life returns to the canopy.', 'The trail leads to the burning sands.'],
+    forge: ['Every leaf and raindrop glows.', 'The Life Heart beats once more.'],
+    newMechanics: [{ icon: 'git-compare', text: 'Vine-linked mirrors turn together' }, { icon: 'refresh-circle', text: 'Spirit totems turn when tapped' }],
+    levels: [
+      ['Tangled Twins', 'Vines bind these mirrors. Turn one, turn both.'],
+      ['Under the Storm', 'Rain hammers the canopy. The light is weak here.'],
+      ['Root and Branch', 'Every vine leads somewhere.'],
+      ['Thunder Path', 'Lightning shows the way for a heartbeat.'],
+      ['Moss Temple', 'The jungle has swallowed an ancient shrine.'],
+      ['Firefly Hollow', 'Fireflies gather where the light flows.'],
+      ['Drowned Steps', 'Old stairs vanish into the flooded floor.'],
+      ['The Strangler Fig', 'The great fig squeezes the mirrors tight.'],
+      ['Rain Shrine', 'The first rain shrine glows green.'],
+      ['Spirit Totem', 'Tap the totem to turn it. Aim its light!'],
+      ['Serpent Vines', 'The vines twist like sleeping snakes.'],
+      ['Jaguar Stones', 'Carved jaguars guard the old road.'],
+      ['Twin Blossoms', 'Two flowers must bloom together.'],
+      ['Mist Falls', 'Waterfalls breathe mist into the trees.'],
+      ['The Hollow Tree', 'A tree so old it has rooms inside.'],
+      ['Lightning Rod', 'Storm power hums inside these stones.'],
+      ['Orchid Garden', 'The orchids open when light touches them.'],
+      ['Heart of Rain', 'Halfway there. The storm grows angry.'],
+      ['Twin Totems', 'Two spirit totems wake together.'],
+      ['Rain Lanterns', 'Lanterns glow wherever the light runs.'],
+      ['Whispering Ferns', 'The ferns lean toward your light.'],
+      ['Knotted Grove', 'Every vine here is tied to another.'],
+      ['Storm Eye', 'The calm at the center of the storm.'],
+      ['Ancient Canopy', 'The tallest trees remember the first dawn.'],
+      ['The Green Gate', 'The jungle opens a secret door.'],
+      ['Thunder King', 'The storm throws everything it has.'],
+      ['The Life Heart', 'Restore the Life Heart!'],
+    ],
+  },
+  {
+    id: 2, number: 3, title: 'The Sinking Sun', world: 'Desert of Pyramids', heart: 'Sun Heart', heartColor: '#ffb21e',
+    intro: [
+      'In the desert, the pyramids guard the last sunlight.',
+      'Ra\'s prisms split a single beam in two.',
+      'But the sun is setting. Every move counts.',
+    ],
+    outro: ['The sun stands still over the pyramids.', 'Far to the north, the trail turns cold.'],
+    forge: ['Ra gathers every ray of light.', 'The Sun Heart rises.'],
+    newMechanics: [
+      { icon: 'triangle', text: 'Prisms split the beam in two' },
+      { icon: 'skull', text: 'Cursed gems must stay dark' },
+    ],
+    levels: [
+      ['Prism of Ra', 'A prism splits one beam into two.'],
+      ['Golden Dunes', 'The sand is warm, but the sun is sinking.'],
+      ['Twin Rays', 'Two rays, two crystals. Ra smiles.'],
+      ['Sunset Clock', 'The sun is setting. Count your moves.'],
+      ['Scarab Road', 'Scarabs carved the road to the pyramids.'],
+      ['Oasis Light', 'Water shimmers in the last sunlight.'],
+      ['Obelisk Shadows', 'Long shadows stretch across the stones.'],
+      ['Tomb Entrance', 'The tomb door is sealed with light.'],
+      ['Cursed Gems', 'Shadow gems drink the light. Keep every beam away!'],
+      ['Sandstorm', 'The wind buries the path. Move wisely.'],
+      ['The Sphinx\'s Riddle', 'The Sphinx asks: where does light go?'],
+      ['Mirage', 'Not every mirror is what it seems.'],
+      ['Twin Pyramids', 'Two pyramids, one sunbeam.'],
+      ['Golden Chamber', 'Treasure gleams in the dark.'],
+      ['Pharaoh\'s Gate', 'Only the patient may pass.'],
+      ['Desert Stars', 'Night is falling. The stars are watching.'],
+      ['River of Sand', 'The sand flows like a river here.'],
+      ['Heart of Ra', 'Halfway there. The desert holds its breath.'],
+      ['Burning Prisms', 'Prisms burn with stolen sunlight.'],
+      ['The Long Dusk', 'The sun hangs low. Hurry.'],
+      ['Valley of Kings', 'The old kings rest beneath the sand.'],
+      ['Split Sky', 'One beam must light the whole valley.'],
+      ['Sun Temple', 'The temple turns to face the sun.'],
+      ['Last Caravan', 'The caravans are counting on you.'],
+      ['Eye of Horus', 'The eye sees every path.'],
+      ['Sunset Throne', 'The sun is almost gone.'],
+      ['The Sun Heart', 'Restore the Sun Heart!'],
+    ],
+  },
+  {
+    id: 3, number: 4, title: 'The Frozen Echo', world: 'Ice Age', heart: 'Frost Heart', heartColor: '#6fe8ff',
+    intro: [
+      'Time stopped in the north. The world froze mid-breath.',
+      'Ice-locked mirrors will not turn...',
+      '...until your light melts them free.',
+    ],
+    outro: ['The glaciers wake and the aurora returns.', 'Only the stars remain. And the Void.'],
+    forge: ['The ice holds every shard of light.', 'The Frost Heart sings.'],
+    newMechanics: [{ icon: 'snow', text: 'Frozen mirrors thaw in the light' }, { icon: 'flashlight', text: 'Three frost lanterns at once' }],
+    levels: [
+      ['Ice-Locked', 'This mirror is frozen. Light will set it free.'],
+      ['Frozen Silence', 'Snow falls without a sound.'],
+      ['First Thaw', 'Warm light. Cracking ice.'],
+      ['Glacier Path', 'Blue ice glows beneath your feet.'],
+      ['Mammoth Rest', 'Giants sleep beneath the snow.'],
+      ['Aurora Gate', 'The northern lights dance overhead.'],
+      ['Crystal Cave', 'The cave walls glitter like stars.'],
+      ['Snowbound', 'The blizzard has buried the old shrine.'],
+      ['Shrine of Frost', 'The first frost shrine shimmers awake.'],
+      ['Thin Ice', 'Careful. Every move echoes.'],
+      ['Frozen Falls', 'A waterfall stopped mid-fall.'],
+      ['Echo Valley', 'Your footsteps answer from far away.'],
+      ['Three Lanterns', 'Three frost lanterns. Three beams. One path each.'],
+      ['Polar Night', 'Here the night lasts for months.'],
+      ['Sleeping Mirrors', 'Wake the mirrors one by one.'],
+      ['Ice Bridge', 'A bridge of frozen light.'],
+      ['Snow Owl Roost', 'White owls watch from the cliffs.'],
+      ['Heart of Winter', 'Halfway there. The cold bites harder.'],
+      ['Frost Giants', 'Statues of ice guard the pass.'],
+      ['Three Auroras', 'Three colors of light in the sky.'],
+      ['Frozen Time', 'Time itself is frozen here.'],
+      ['The Thaw Chain', 'One thaw leads to the next.'],
+      ['Blizzard Peak', 'The wind screams at the summit.'],
+      ['Mirror Lake', 'The frozen lake reflects the sky.'],
+      ['Ancient Ice', 'This ice is older than memory.'],
+      ['The Last Winter', 'The Frost Heart is near.'],
+      ['The Frost Heart', 'Restore the Frost Heart!'],
+    ],
+  },
+  {
+    id: 4, number: 5, title: 'Heart of the Void', world: 'The Void', heart: 'Star Heart', heartColor: '#b46bff',
+    intro: [
+      'Beyond the sky, the Void waits among dead stars.',
+      'Wormholes fold space. Everything you learned will be tested.',
+      'Light the Star Heart. Close the eye forever.',
+    ],
+    outro: ['The Void Eye flinches, but it will not close.', 'Only the five Hearts together can seal it.'],
+    forge: ['The dead stars kindle, one by one.', 'The Star Heart burns brighter than the Void.'],
+    newMechanics: [{ icon: 'planet', text: 'Wormholes bend space' }, { icon: 'skull', text: 'Final boss: the Void Eye' }],
+    levels: [
+      ['Wormhole', 'Light enters here and appears over there.'],
+      ['Beyond the Sky', 'The air is gone. Only stars remain.'],
+      ['Folded Space', 'Space bends like paper.'],
+      ['Star Dust', 'Ancient stars scatter their dust.'],
+      ['Ring World', 'A world wrapped in rings.'],
+      ['Event Horizon', 'Do not stare into the dark.'],
+      ['Comet Trail', 'A comet races past.'],
+      ['Gravity Well', 'Everything here falls toward the eye.'],
+      ['Nebula Gate', 'The first star gate opens.'],
+      ['Moon Mirrors', 'Moons reflect the old light.'],
+      ['The Void Whispers', 'It knows you are coming.'],
+      ['Asteroid Field', 'Rocks drift through the dark.'],
+      ['Triple Star', 'Three stars align against the dark.'],
+      ['Quantum Maze', 'Every path folds into another.'],
+      ['Dark Matter', 'Something unseen bends the light.'],
+      ['Starforge', 'Where stars are born.'],
+      ['Echoes of the Prism', 'Shards of the Prism glimmer here.'],
+      ['Heart of Stars', 'Halfway to the eye.'],
+      ['Frozen Comet', 'Ice and fire in one.'],
+      ['Five Lights', 'Remember every world you saved.'],
+      ['Void Storm', 'The Void throws its storm at you.'],
+      ['Collapse', 'The stars are falling inward.'],
+      ['The Last Gate', 'One gate stands between you and the eye.'],
+      ['Eye Opens', 'The Void sees you.'],
+      ['Shadow Prism', 'The Void\'s own prism. Turn it against it.'],
+      ['Into the Eye', 'There is no turning back.'],
+      ['The Star Heart', 'Close the Void. Restore the Prism!'],
+    ],
+  },
+];
+
+export const mechanicTips: Partial<Record<Mechanic, string>> = {
+  mirror: 'Tap a mirror to turn it. Light the crystal before your moves run out!',
+  blocker: 'Stone blocks stop the light. Find a way around them.',
+  fixed: 'Silver mirrors are fixed in place. Plan around them.',
+  decoy: 'Not every mirror is part of the path.',
+  multi: 'Light passes through crystals. Light them ALL!',
+  link: 'Vines link these mirrors. Turn one and its twin turns too!',
+  splitter: 'Prisms split the light into two beams!',
+  limit: 'Every level has limited moves. Look first, then tap!',
+  twin: 'Two cannons! Every crystal must be lit at the same time.',
+  triple: 'Three cannons! Guide every beam to its own crystal.',
+  turn: 'Tap the cannon itself to turn it a quarter turn.',
+  hazard: 'Cursed gems drink the light. If a beam touches one, the crystals cannot wake!',
+  frozen: 'Frozen mirrors won\'t turn. Shine light on them to melt the ice!',
+  portal: 'Wormholes send the light out of their twin!',
+};
+
+export const chapterOf = (levelId: number) => Math.floor((levelId - 1) / LEVELS_PER_CHAPTER) as ChapterId;
+export const firstLevelOf = (chapter: number) => chapter * LEVELS_PER_CHAPTER + 1;

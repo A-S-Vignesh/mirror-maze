@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Mirror Maze",
+    "slug": "mirror-maze",
+    "version": "4.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#05030f",
+    "newArchEnabled": true,
+    "splash": { "image": "./assets/images/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#05030f" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.lightkeeper.mirrormaze" },
+    "android": {
+      "package": "com.lightkeeper.mirrormaze",
+      "versionCode": 4,
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": { "foregroundImage": "./assets/images/adaptive-foreground.png", "backgroundColor": "#140a33" }
+    },
+    "web": { "bundler": "metro", "name": "Mirror Maze - The Last Lightkeeper", "themeColor": "#05030f", "favicon": "./assets/images/icon.png" }
+  }
+}
