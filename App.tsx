@@ -25,7 +25,7 @@ import { heartsEarned, recordResult, SHARDS_PER_WORLD, totalShards, unlockedLeve
 import { levels } from './src/game/levels';
 import { chapterOf, firstLevelOf, LEVELS_PER_CHAPTER } from './src/game/chapters';
 import { applyMove, canRotate, initialState, solve, starsFor, traceState } from './src/game/engine';
-import { PlayState } from './src/game/types';
+import { PlayState, Trace } from './src/game/types';
 
 type Screen = 'splash' | 'prologue' | 'home' | 'map' | 'intro' | 'game' | 'complete' | 'fail' | 'outro' | 'forge' | 'ending';
 const worldMode: Record<Screen, WorldMode> = {
@@ -67,7 +67,9 @@ function GameApp() {
   /** A cutscene being re-watched from the journey map; when it ends the player returns to the map. */
   const [replay, setReplay] = useState<{ kind: StoryKind; chapter: number }>();
   const mapScroll = useMemo<MapScroll>(() => ({ progress: 0 }), []);
+  const traceCache = useRef<{ level: typeof levels[number]; state: PlayState; trace: Trace } | null>(null);
   const lock = useRef(0);
+  const curtainTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const progress = save.data.progress;
   const seen = save.data.seen;
@@ -86,7 +88,13 @@ function GameApp() {
     return levels[Math.min(Math.max(next, first), first + LEVELS_PER_CHAPTER - 1) - 1]!;
   }, [playing, level, worldChapter, next]);
   const boardState = useMemo(() => (playing ? play : initialState(boardLevel)), [playing, play, boardLevel]);
-  const trace = useMemo(() => traceState(boardLevel, boardState), [boardLevel, boardState]);
+  const trace = useMemo(() => {
+    const cached = traceCache.current;
+    if (cached?.level === boardLevel && cached.state === boardState) return cached.trace;
+    const next = traceState(boardLevel, boardState);
+    traceCache.current = { level: boardLevel, state: boardState, trace: next };
+    return next;
+  }, [boardLevel, boardState]);
   const won = playing && trace.won;
 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
@@ -99,16 +107,19 @@ function GameApp() {
   useEffect(() => { voice.configure(save.data.settings.voice && active); }, [save.data.settings.voice, active]);
   // Narration belongs to cutscenes only; leaving one silences the narrator.
   useEffect(() => { if (!['prologue', 'intro', 'outro', 'forge', 'ending'].includes(screen)) voice.stop(); }, [screen]);
-  useEffect(() => { audio.setChapter(screen === 'prologue' || screen === 'ending' ? 4 : worldChapter); }, [worldChapter, screen]);
+  useEffect(() => { audio.setChapter(screen === 'prologue' || screen === 'ending' ? 4 : worldChapter, screen === 'map'); }, [worldChapter, screen]);
   // Outside the map, switching worlds dips briefly to black; the map hides the swap behind its chapter veils instead.
   const lastWorld = useRef(worldChapter);
   useEffect(() => {
     if (lastWorld.current === worldChapter) return;
     lastWorld.current = worldChapter;
     if (screen === 'map') return;
+    if (curtainTimer.current) clearTimeout(curtainTimer.current);
     setCurtain(true);
-    const t = setTimeout(() => setCurtain(false), 360);
-    return () => clearTimeout(t);
+    curtainTimer.current = setTimeout(() => {
+      curtainTimer.current = undefined;
+      setCurtain(false);
+    }, 360);
   }, [worldChapter, screen]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', s => { setActive(s === 'active'); if (s !== 'active' && screen === 'game') setModal('pause'); });
@@ -124,6 +135,9 @@ function GameApp() {
     return () => sub.remove();
   }, [screen, modal, go]);
   useEffect(() => () => clearTimers(), []);
+  useEffect(() => () => {
+    if (curtainTimer.current) clearTimeout(curtainTimer.current);
+  }, []);
 
   const begin = (id: number) => {
     clearTimers();
@@ -140,8 +154,8 @@ function GameApp() {
     else go('game');
   };
   const openMap = (focus = Math.min(next, levels.length)) => { setMapFocus(focus); setMapChapter(chapterOf(focus)); go('map'); };
-  const finishLevel = (state: PlayState, used: number) => {
-    if (!traceState(level, state).won) { console.error('Rejected unverified completion', levelId); return; }
+  const finishLevel = (state: PlayState, used: number, result: Trace) => {
+    if (!result.won) { console.error('Rejected unverified completion', levelId); return; }
     const stars = starsFor(level, used);
     const before = worldShards(progress, level.chapter);
     const after = worldShards(recordResult(progress, levelId, stars, used), level.chapter);
@@ -157,16 +171,17 @@ function GameApp() {
     const nextState = applyMove(level, play, id);
     const used = moves + 1;
     setHistory(h => [...h, { play, moves }]);
+    const t = traceState(level, nextState);
+    traceCache.current = { level, state: nextState, trace: t };
     setPlay(nextState); setMoves(used);
     setHint(undefined);
     audio.play(id.startsWith('e') ? 'turn' : 'rotate'); audio.play('zap'); audio.haptic();
-    const t = traceState(level, nextState);
     if (t.won) {
       lock.current = Number.MAX_SAFE_INTEGER;
       const travel = Math.max(...Object.values(t.activatedAt)) / BEAM_SPEED;
       later(travel * 1000, () => { audio.play('charge'); audio.haptic(); });
       later((travel + CHARGE_TIME) * 1000, () => { audio.play('win'); audio.haptic('success'); setCelebrate(true); });
-      later((travel + CHARGE_TIME + 1.5) * 1000, () => finishLevel(nextState, used));
+      later((travel + CHARGE_TIME + 1.5) * 1000, () => finishLevel(nextState, used, t));
     } else {
       const left = level.maxMoves - used;
       if (left <= 0) { lock.current = Number.MAX_SAFE_INTEGER; later(900, () => go('fail')); }

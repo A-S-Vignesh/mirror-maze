@@ -59,11 +59,12 @@ export function traceBeam(level: Level, orientations: Record<string, Orientation
   const visited = new Set<string>();
   const parents: number[] = level.emitters.map(() => -1);
   const queue: Ray[] = level.emitters.map((e, i) => ({ pos: e.position, dir: aims?.[e.id] ?? e.direction, dist: 0, branch: i, root: i }));
+  let queueIndex = 0;
   const n = level.size;
   let loop = false;
   let budget = n * n * 16 * Math.max(1, level.emitters.length);
-  while (queue.length && budget > 0) {
-    const ray = queue.shift()!;
+  while (queueIndex < queue.length && budget > 0) {
+    const ray = queue[queueIndex++]!;
     let pos = ray.pos, dir = ray.dir, dist = ray.dist;
     const { branch, root } = ray;
     let runFrom = pos, runStart = dist;

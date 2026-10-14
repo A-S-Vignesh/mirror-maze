@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AdditiveBlending, CatmullRomCurve3, Color, DirectionalLight, Group, HemisphereLight, Mesh, MeshBasicMaterial, MeshStandardMaterial,
   PerspectiveCamera, PMREMGenerator, Scene, SphereGeometry, Sprite, Vector3 } from 'three';
@@ -18,6 +18,7 @@ import { Rainforest, Storm } from './env/Rainforest';
 import { Desert } from './env/Desert';
 import { IceAge } from './env/IceAge';
 import { EyeState, TheVoid } from './env/Void';
+import { PerformanceStats } from './PerformanceStats';
 import { clipToCrystals, key } from '../game/engine';
 import { Level, PlayState, Trace } from '../game/types';
 import { chapters } from '../game/chapters';
@@ -36,27 +37,69 @@ export interface WorldProps {
 }
 
 const sunsetColor = new Color('#ff6a3a');
+const environmentTargets = new WeakMap<object, Map<Look, ReturnType<PMREMGenerator['fromScene']>>>();
+const environmentGenerators = new WeakMap<object, PMREMGenerator>();
 
 function EnvMap({ look }: { look: Look }) {
   const { gl, scene } = useThree();
   useEffect(() => {
+    const cached = environmentTargets.get(gl)?.get(look);
+    if (cached) {
+      scene.environment = cached.texture;
+      if (__DEV__ && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mirror-maze-performance', { detail: { type: 'pmrem', chapter: looks.indexOf(look), cached: true } }));
+      }
+      return () => { if (scene.environment === cached.texture) scene.environment = null; };
+    }
     let dispose = () => undefined as void;
+    let pm: PMREMGenerator | undefined;
+    let ownsGenerator = false;
+    let target: ReturnType<PMREMGenerator['fromScene']> | undefined;
+    let sky: ReturnType<typeof skyMaterial> | undefined;
+    let skyGeometry: SphereGeometry | undefined;
+    let sunGeometry: SphereGeometry | undefined;
+    let sunMaterial: MeshBasicMaterial | undefined;
+    const startedAt = performance.now();
     try {
-      const pm = new PMREMGenerator(gl);
+      pm = environmentGenerators.get(gl);
+      if (!pm) {
+        pm = new PMREMGenerator(gl);
+        environmentGenerators.set(gl, pm);
+        ownsGenerator = true;
+      }
       const s = new Scene();
-      const m = skyMaterial();
-      const u = m.uniforms;
+      sky = skyMaterial();
+      skyGeometry = new SphereGeometry(10, 32, 16);
+      sunGeometry = new SphereGeometry(1.4, 12, 8);
+      sunMaterial = new MeshBasicMaterial({ color: new Color(look.sky.sun).multiplyScalar(4) });
+      const u = sky.uniforms;
       u.uTop!.value.set(look.sky.top); u.uHorizon!.value.set(look.sky.horizon); u.uBottom!.value.set(look.sky.bottom);
       u.uSun!.value.set(look.sky.sun); u.uSunDir!.value.set(...look.sky.sunDir).normalize(); u.uSunSize!.value = look.sky.sunSize;
       u.uNebula!.value = look.sky.nebula;
-      s.add(new Mesh(new SphereGeometry(10, 32, 16), m));
-      const sun = new Mesh(new SphereGeometry(1.4, 12, 8), new MeshBasicMaterial({ color: new Color(look.sky.sun).multiplyScalar(4) }));
+      s.add(new Mesh(skyGeometry, sky));
+      const sun = new Mesh(sunGeometry, sunMaterial);
       sun.position.set(...look.sky.sunDir).normalize().multiplyScalar(8);
       s.add(sun);
-      const rt = pm.fromScene(s, .03);
-      scene.environment = rt.texture;
-      dispose = () => { rt.dispose(); pm.dispose(); m.dispose(); scene.environment = null; };
-    } catch (cause) { console.warn('Environment reflections unavailable', cause); }
+      target = pm.fromScene(s, .03);
+      scene.environment = target.texture;
+      let targets = environmentTargets.get(gl);
+      if (!targets) { targets = new Map(); environmentTargets.set(gl, targets); }
+      targets.set(look, target);
+      if (__DEV__) {
+        const sample = { type: 'pmrem', chapter: looks.indexOf(look), ms: Math.round(performance.now() - startedAt), cached: false };
+        console.info('[Mirror Maze perf] PMREM generated', sample);
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('mirror-maze-performance', { detail: sample }));
+      }
+      dispose = () => {
+        if (scene.environment === target?.texture) scene.environment = null;
+        sky?.dispose(); skyGeometry?.dispose(); sunGeometry?.dispose(); sunMaterial?.dispose();
+      };
+    } catch (cause) {
+      target?.dispose();
+      if (ownsGenerator) { pm?.dispose(); environmentGenerators.delete(gl); }
+      sky?.dispose(); skyGeometry?.dispose(); sunGeometry?.dispose(); sunMaterial?.dispose();
+      console.warn('Environment reflections unavailable', cause);
+    }
     return () => dispose();
   }, [gl, scene, look]);
   return null;
@@ -97,6 +140,7 @@ function BoardView({ level, state, trace, look, chapter, hint, onTap, onBlocked,
   const clock = useMemo<BeamClock>(() => ({ reveal: { value: 0 }, boost: { value: 0 } }), []);
   const win = useMemo<WinClock>(() => ({ start: -1 }), []);
   const born = useMemo(() => ({ value: -1 }), []);
+  const boardClock = useMemo(() => ({ born }), [born]);
   const shown = useMemo(() => (trace.won ? clipToCrystals(trace) : trace), [trace]);
   const finish = useMemo(() => Math.max(0, ...Object.values(trace.activatedAt)), [trace]);
   useFrame(({ clock: c }) => {
@@ -118,12 +162,15 @@ function BoardView({ level, state, trace, look, chapter, hint, onTap, onBlocked,
     for (const m of level.mirrors) if (m.link) groups.set(m.link, [...(groups.get(m.link) ?? []), m]);
     return [...groups.values()].filter(g => g.length > 1);
   }, [level]);
-  return <BoardClock.Provider value={{ born }}>
+  const mirrorTaps = useMemo(() => onTap ? new Map(level.mirrors.map(m => [m.id, () => onTap(m.id)])) : undefined, [level, onTap]);
+  const emitterTaps = useMemo(() => onTap ? new Map(level.emitters.filter(e => e.rotatable).map(e => [e.id, () => onTap(e.id)])) : undefined, [level, onTap]);
+  const blockedTap = useCallback(() => onBlocked?.(), [onBlocked]);
+  return <BoardClock.Provider value={boardClock}>
     <group position={[-c0, 0, -c0]}>
       <BoardBody size={n} chapter={chapter} look={look} />
       {level.emitters.map(e => <group key={e.id} position={[e.position[0], 0, e.position[1]]}>
         <LightSource direction={state.aims[e.id] ?? e.direction} chapter={chapter} look={look} fire={state} delay={.25} rotatable={e.rotatable}
-          hint={hint === e.id} onTap={onTap ? () => (e.rotatable ? onTap(e.id) : onBlocked?.()) : undefined} />
+          hint={hint === e.id} onTap={onTap ? e.rotatable ? emitterTaps?.get(e.id) : blockedTap : undefined} />
         {hint === e.id && <HintArrow />}
       </group>)}
       {level.hazards.map(h => <group key={h.id} position={[h.position[0], 0, h.position[1]]}>
@@ -132,7 +179,7 @@ function BoardView({ level, state, trace, look, chapter, hint, onTap, onBlocked,
       {level.mirrors.map(m => <group key={m.id} position={[m.position[0], 0, m.position[1]]}>
         <MirrorPiece mirror={m} orientation={state.orientations[m.id] ?? m.orientation} thawed={!!state.thawed[m.id]} hint={hint === m.id}
           hitAt={hitAt.get(key(m.position))} clock={clock} look={look} chapter={chapter} delay={delay(m.position)} sounds={sounds}
-          onTap={onTap ? () => onTap(m.id) : undefined} onBlocked={onBlocked} />
+          onTap={mirrorTaps?.get(m.id)} onBlocked={onBlocked} />
       </group>)}
       {level.targets.map((t, i) => <group key={t.id} position={[t.position[0], 0, t.position[1]]}>
         <CrystalPiece at={trace.activatedAt[t.id]} clock={clock} win={win} index={i} look={look} chapter={chapter}
@@ -179,10 +226,13 @@ const TOP_DIR = new Vector3(.04, .97, .24).normalize();
  * Projects the board's bounding corners, so the result is tight for any screen shape.
  */
 function frameBoard(cam: PerspectiveCamera, n: number, W: number, H: number, top: number, bottom: number, dir: Vector3) {
+  if (W <= 0 || H <= 0) return { d: n * 2.2 + 4, offset: 0 };
   const half = n / 2 + .1;
   const regionH = Math.max(120, H - top - bottom);
   let d = n * 2.2 + 4;
+  cam.aspect = W / H;
   cam.clearViewOffset();
+  cam.updateProjectionMatrix();
   let minY = 0, maxY = 0;
   for (let iter = 0; iter < 4; iter++) {
     cam.position.copy(dir).multiplyScalar(d);
@@ -213,23 +263,27 @@ function CameraDirector({ mode, chapter, n, insets, mapScroll, view, pulse, won,
   const pos = useRef(new Vector3(0, 40, 90));
   const target = useRef(new Vector3(0, 0, 0));
   const offset = useRef(0);
+  const projection = useRef({ width: 0, height: 0, offset: Number.NaN });
   const started = useRef({ mode: '' as string, at: 0, chapter: -1, stage: '' });
   const framing = useRef({ key: '', d: 10, offset: 0 });
   const punch = useRef({ last: pulse, at: -10 });
   const curve = useMemo(() => new CatmullRomCurve3(introPaths[chapter]!.map(p => new Vector3(...p))), [chapter]);
   useFrame(({ clock }, dt) => {
     const t = clock.elapsedTime;
-    if (started.current.mode !== mode || started.current.chapter !== chapter || started.current.stage !== stage) started.current = { mode, at: t, chapter, stage };
+    const sceneChanged = started.current.mode !== mode || started.current.chapter !== chapter || started.current.stage !== stage;
+    if (sceneChanged) started.current = { mode, at: t, chapter, stage };
     const mt = t - started.current.at;
     const cam = camera as PerspectiveCamera;
     const W = size.width, H = size.height, aspect = W / Math.max(1, H);
+    if (W <= 0 || H <= 0) return;
     // Portrait phones see far less horizontally; pull cinematic shots back so subjects stay in frame.
     const pf = Math.min(1.75, Math.max(1, .7 / aspect));
-    const fkey = `${n}:${W}:${H}:${insets.top}:${insets.bottom}:${view}`;
+    const fkey = `${n}:${W}:${H}:${insets.top}:${insets.bottom}:${view}:${stage}`;
     if (framing.current.key !== fkey) {
       const saved = { p: cam.position.clone(), q: cam.quaternion.clone() };
       framing.current = { key: fkey, ...frameBoard(cam, n, W, H, insets.top, insets.bottom, view === 'top' ? TOP_DIR : GAME_DIR) };
       cam.position.copy(saved.p); cam.quaternion.copy(saved.q);
+      projection.current.width = 0;
     }
     const fr = framing.current;
     let off = 0, k = 2.4;
@@ -313,13 +367,21 @@ function CameraDirector({ mode, chapter, n, insets, mapScroll, view, pulse, won,
       }
     }
     const a = 1 - Math.exp(-dt * k);
+    if (sceneChanged && mode === 'game') {
+      pos.current.copy(tmpPos);
+      target.current.copy(tmpTarget);
+      offset.current = off;
+    }
     pos.current.lerp(tmpPos, a);
     target.current.lerp(tmpTarget, a);
     offset.current += (off - offset.current) * a;
     cam.position.copy(pos.current);
     cam.lookAt(target.current);
-    cam.setViewOffset(W, H, 0, offset.current, W, H);
-    cam.updateProjectionMatrix();
+    if (projection.current.width !== W || projection.current.height !== H || Math.abs(projection.current.offset - offset.current) > .01) {
+      cam.setViewOffset(W, H, 0, offset.current, W, H);
+      cam.updateProjectionMatrix();
+      projection.current = { width: W, height: H, offset: offset.current };
+    }
   });
   return null;
 }
@@ -386,6 +448,14 @@ function WorldContent(props: WorldProps) {
   const look = looks[envChapter]!;
   const boardLook = looks[chapter]!;
   const { gl } = useThree();
+  useEffect(() => () => {
+    const targets = environmentTargets.get(gl);
+    targets?.forEach(target => target.dispose());
+    targets?.clear();
+    environmentTargets.delete(gl);
+    environmentGenerators.get(gl)?.dispose();
+    environmentGenerators.delete(gl);
+  }, [gl]);
   const storm = useMemo<Storm>(() => ({ flash: { value: 0 } }), []);
   useEffect(() => { gl.toneMappingExposure = look.light.exposure; }, [gl, look]);
   const eye: EyeState = mode === 'ending' ? 'closing' : mode === 'prologue' || (chapter === 4 && level.index >= 24 && boardModes.includes(mode)) ? 'angry' : 'idle';
@@ -413,17 +483,24 @@ function WorldContent(props: WorldProps) {
     </group>}
     {mode === 'prologue' && <Prologue />}
     {mode === 'outro' && <Beacon chapter={chapter} />}
+    {__DEV__ && <PerformanceStats mode={mode} chapter={chapter} stage={props.boardKey} />}
     <CameraDirector mode={mode} chapter={envChapter} n={level.size} insets={props.insets} mapScroll={props.mapScroll} view={props.view ?? 'tilt'}
       pulse={props.state} won={props.trace.won} stage={props.boardKey} />
   </>;
 }
 
 export function World(props: WorldProps) {
+  const onTapRef = useRef(props.onTap);
+  const onBlockedRef = useRef(props.onBlocked);
+  onTapRef.current = props.onTap;
+  onBlockedRef.current = props.onBlocked;
+  const onTap = useCallback((id: string) => onTapRef.current?.(id), []);
+  const onBlocked = useCallback(() => onBlockedRef.current?.(), []);
   return <View style={StyleSheet.absoluteFill} pointerEvents={props.mode === 'game' ? 'auto' : 'none'}>
     <SceneBoundary>
       <Canvas shadows camera={{ fov: 38, near: .1, far: 900, position: [0, 40, 90] }} style={{ flex: 1 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}>
-        <WorldContent {...props} />
+        <WorldContent {...props} onTap={onTap} onBlocked={onBlocked} />
       </Canvas>
     </SceneBoundary>
   </View>;

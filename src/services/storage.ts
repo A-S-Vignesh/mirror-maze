@@ -1,6 +1,7 @@
 import { Progress } from '../game/progress';
 
 export const STORAGE_KEY = 'mirror-maze:save:v1';
+export const DEVELOPMENT_STORAGE_KEY = `${STORAGE_KEY}:development`;
 export const MAX_LEVEL = 135;
 export interface Settings { sound: boolean; music: boolean; haptics: boolean; voice: boolean }
 /** Story moments already shown: prologue, world intros, world-cleared outros, Heart forgings and the finale. */
@@ -9,6 +10,11 @@ export interface SaveData { version: 2; progress: Progress; settings: Settings; 
 export const freshSave = (): SaveData => ({
   version: 2, progress: {}, settings: { sound: true, music: true, haptics: true, voice: true },
   seen: { prologue: false, intros: [], outros: [], hearts: [], ending: false }, levelsSinceAd: 0,
+});
+export const completedDevelopmentSave = (save: SaveData): SaveData => ({
+  ...save,
+  progress: Object.fromEntries(Array.from({ length: MAX_LEVEL }, (_, index) => [String(index + 1), { stars: 3, moves: 1 }])),
+  seen: { prologue: true, intros: [0, 1, 2, 3, 4], outros: [0, 1, 2, 3, 4], hearts: [0, 1, 2, 3, 4], ending: true },
 });
 
 function isObject(value: unknown): value is Record<string, unknown> {

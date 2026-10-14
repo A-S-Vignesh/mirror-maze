@@ -137,7 +137,7 @@ function Turntable({ look, hint }: { look: Look; hint: boolean }) {
   </group>;
 }
 
-export function LightSource({ direction, chapter, look, fire, delay, rotatable, hint, onTap }: {
+export const LightSource = React.memo(function LightSource({ direction, chapter, look, fire, delay, rotatable, hint, onTap }: {
   direction: Direction; chapter: number; look: Look; fire: unknown; delay: number; rotatable?: boolean; hint?: boolean; onTap?: () => void;
 }) {
   const root = useRef<Group>(null);
@@ -180,5 +180,5 @@ export function LightSource({ direction, chapter, look, fire, delay, rotatable, 
       <boxGeometry args={[1, 1.4, 1]} /><meshBasicMaterial />
     </mesh>}
   </group>;
-}
+});
 export const _mesh = (m: Mesh) => m;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { decodeSave, freshSave, SaveData, Settings, STORAGE_KEY } from './storage';
+import { completedDevelopmentSave, decodeSave, DEVELOPMENT_STORAGE_KEY, freshSave, SaveData, Settings, STORAGE_KEY } from './storage';
 import { recordResult } from '../game/progress';
 
 export function useSave() {
@@ -13,8 +13,10 @@ export function useSave() {
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      setData(raw === null ? freshSave() : decodeSave(raw));
+      const key = __DEV__ ? DEVELOPMENT_STORAGE_KEY : STORAGE_KEY;
+      const raw = await AsyncStorage.getItem(key);
+      const loaded = raw === null ? freshSave() : decodeSave(raw);
+      setData(__DEV__ ? completedDevelopmentSave(loaded) : loaded);
       setLoaded(true);
     } catch (cause) {
       console.error('Could not load Mirror Maze save', cause);
@@ -28,7 +30,8 @@ export function useSave() {
     setSaving(true);
     queue.current = queue.current.then(async () => {
       try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        const key = __DEV__ ? DEVELOPMENT_STORAGE_KEY : STORAGE_KEY;
+        await AsyncStorage.setItem(key, JSON.stringify(data));
         if (currentRevision === revision.current) { setSaving(false); setError(undefined); }
       } catch (cause) {
         console.error('Could not persist Mirror Maze save', cause);

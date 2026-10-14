@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeSave, freshSave } from '../services/storage';
+import { completedDevelopmentSave, decodeSave, freshSave, MAX_LEVEL } from '../services/storage';
+
+test('Development save completes every level and story moment', () => {
+  const save = completedDevelopmentSave(freshSave());
+  assert.equal(Object.keys(save.progress).length, MAX_LEVEL);
+  assert.deepEqual(save.progress['1'], { stars: 3, moves: 1 });
+  assert.deepEqual(save.progress[String(MAX_LEVEL)], { stars: 3, moves: 1 });
+  assert.deepEqual(save.seen, { prologue: true, intros: [0, 1, 2, 3, 4], outros: [0, 1, 2, 3, 4], hearts: [0, 1, 2, 3, 4], ending: true });
+});
 
 test('Progress, settings and story flags survive serialization', () => {
   const save = { ...freshSave(), progress: { 135: { stars: 3, moves: 7 } }, seen: { prologue: true, intros: [0, 1], outros: [0], hearts: [0], ending: false }, levelsSinceAd: 2 };

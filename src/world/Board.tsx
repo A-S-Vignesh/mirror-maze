@@ -264,10 +264,10 @@ function Base({ size, chapter, look }: { size: number; chapter: number; look: Lo
   </group>;
 }
 
-export function BoardBody({ size, chapter, look }: { size: number; chapter: number; look: Look }) {
+export const BoardBody = React.memo(function BoardBody({ size, chapter, look }: { size: number; chapter: number; look: Look }) {
   return <group>
     <Tiles size={size} look={look} chapter={chapter} />
     <Rim size={size} chapter={chapter} />
     <Base size={size} chapter={chapter} look={look} />
   </group>;
-}
+});

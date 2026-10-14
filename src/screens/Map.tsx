@@ -2,7 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Animated, Easing, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { chapters, LEVELS_PER_CHAPTER } from '../game/chapters';
 import { levels } from '../game/levels';
 import { Progress, SHARDS_PER_WORLD, totalShards, unlockedLevel, worldShards } from '../game/progress';
@@ -70,7 +70,7 @@ function Ring({ color, size }: { color: string; size: number }) {
 
 const boardWidth = (id: number, boss: boolean) => (id === levels.length ? 220 : boss ? 205 : 176);
 
-const LevelNode = memo(function LevelNode({ id, state, shards, near }: { id: number; state: MiniState; shards: number; near: boolean }) {
+const LevelNode = memo(function LevelNode({ id, state, shards }: { id: number; state: MiniState; shards: number }) {
   const lvl = levels[id - 1]!;
   const c = lvl.chapter;
   const look = looks[c]!;
@@ -83,7 +83,7 @@ const LevelNode = memo(function LevelNode({ id, state, shards, near }: { id: num
   const shake = useRef(new Animated.Value(0)).current;
   return <Animated.View style={{ width: W, alignItems: 'center', transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-6, 6] }) }] }}>
     {(boss || final) && state !== 'locked' && <View pointerEvents="none" style={[s.aura, { width: W * 1.2, height: W * .9, borderRadius: W, backgroundColor: `${heart}30`, top: H * .05 }]} />}
-    {near ? <MiniBoard chapter={c} state={state} width={W} /> : <View style={{ width: W, height: H }} />}
+    <MiniBoard chapter={c} state={state} width={W} />
     <View pointerEvents="none" style={[s.medalWrap, { top: miniCenter(W) - medal * .75 }]}>
       {state === 'current' && <Ring color="#ffe08a" size={medal} />}
       <Loop duration={600} to={-7} active={state === 'current'}>
@@ -120,6 +120,21 @@ const LevelNode = memo(function LevelNode({ id, state, shards, near }: { id: num
 // Node presses route through a ref so memoised nodes never re-render when the parent's callbacks change.
 const onPressRef: { current?: (id: number) => void } = {};
 
+const MapLevel = memo(function MapLevel({ id, state, shards, active, left, top }: {
+  id: number; state: MiniState; shards: number; active: boolean; left: number; top: number;
+}) {
+  const lvl = levels[id - 1]!;
+  const W = boardWidth(id, lvl.boss);
+  return <View style={{ position: 'absolute', left, top }}>
+    {active ? <LevelNode id={id} state={state} shards={shards} />
+      : <Pressable accessibilityRole="button" accessibilityLabel={`Map level ${id}${state === 'locked' ? ', locked' : `, ${lvl.title}`}`}
+        style={{ width: W, height: miniHeight(W) + 32 }} onPress={() => {
+          if (state === 'locked') { audio.play('bonk'); audio.haptic('error'); return; }
+          audio.play('whoosh'); onPressRef.current?.(id);
+        }} />}
+  </View>;
+});
+
 function StoryChip({ icon, label, onPress }: { icon: React.ComponentProps<typeof GameIcon>['name']; label: string; onPress: () => void }) {
   const { ui } = useUI();
   return <Pressable accessibilityRole="button" accessibilityLabel={`Watch ${label}`} onPress={onPress} hitSlop={6}
@@ -129,8 +144,8 @@ function StoryChip({ icon, label, onPress }: { icon: React.ComponentProps<typeof
   </Pressable>;
 }
 
-function Gate({ section, progress, width, next, hearts, seen, safeTop, onWatch }: {
-  section: Section; progress: Progress; width: number; next: number; hearts: number[]; seen: Seen; safeTop: number; onWatch: (k: StoryKind, c: number) => void;
+function Gate({ section, progress, width, next, hearts, seen, safeTop, active, onWatch }: {
+  section: Section; progress: Progress; width: number; next: number; hearts: number[]; seen: Seen; safeTop: number; active: boolean; onWatch: (k: StoryKind, c: number) => void;
 }) {
   const c = chapters[section.chapter]!;
   const look = looks[section.chapter]!;
@@ -145,7 +160,7 @@ function Gate({ section, progress, width, next, hearts, seen, safeTop, onWatch }
     {/* The veil is fully opaque between 30% and 70% of the gate; the 3D world swaps in that band, unseen. */}
     <LinearGradient pointerEvents="none" colors={veil as [string, string, string, string]} locations={[0, .3, .7, 1]} style={StyleSheet.absoluteFill} />
     <View style={[s.gateCard, { top: ch === 0 ? safeTop + 84 : section.gateH * .5 - 190 }]} pointerEvents="box-none">
-      <Loop duration={2200} to={-6}><Gem size={66} color={forged ? c.heartColor : 'gray'} /></Loop>
+      <Loop duration={2200} to={-6} active={active}><Gem size={66} color={forged ? c.heartColor : 'gray'} /></Loop>
       <View style={s.kicker}><GameText size={12} font="cinemaBold" strokeWidth={0} style={{ color: ui.accent, letterSpacing: 4 }}>{`CHAPTER ${c.number} · ${c.world.toUpperCase()}`}</GameText></View>
       <TitleArt lines={[c.title.toUpperCase()]} width={Math.min(width - 40, 420)} size={fitTitle(c.title, Math.min(width - 40, 420), 36)} fill={ui.title} stroke={ui.titleStroke} font={fonts.cinemaBold} />
       <GameText size={14} font="semi" strokeWidth={0} style={s.story}>{c.intro[0]}</GameText>
@@ -169,32 +184,39 @@ function Gate({ section, progress, width, next, hearts, seen, safeTop, onWatch }
 const Beams = memo(function Beams({ section, width, nodeX, nodeY, lit }: { section: Section; width: number; nodeX: (c: number, i: number) => number; nodeY: (s: Section, i: number) => number; lit: number }) {
   const look = looks[section.chapter]!;
   const pts = Array.from({ length: LEVELS_PER_CHAPTER }, (_, i) => [nodeX(section.chapter, i), nodeY(section, i) - section.levelsTop] as const);
+  const paths = { litOuter: '', litInner: '', litCore: '', dim: '', dash: '' };
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!;
+    const segment = `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`;
+    if (i < lit) {
+      paths.litOuter += segment;
+      paths.litInner += segment;
+      paths.litCore += segment;
+    } else {
+      paths.dim += segment;
+      paths.dash += segment;
+    }
+  }
   return <View style={{ position: 'absolute', top: section.levelsTop, left: 0 }} pointerEvents="none">
     <Svg width={width} height={section.levelsH}>
-      {pts.slice(1).map((p, i) => {
-        const a = pts[i]!, on = i + 1 < lit;
-        return on ? <React.Fragment key={i}>
-          <Line x1={a[0]} y1={a[1]} x2={p[0]} y2={p[1]} stroke={look.beam} strokeWidth={18} strokeOpacity={.18} strokeLinecap="round" />
-          <Line x1={a[0]} y1={a[1]} x2={p[0]} y2={p[1]} stroke={look.beam} strokeWidth={7} strokeOpacity={.55} strokeLinecap="round" />
-          <Line x1={a[0]} y1={a[1]} x2={p[0]} y2={p[1]} stroke={look.beamGlow} strokeWidth={2.6} strokeLinecap="round" />
-        </React.Fragment> : <React.Fragment key={i}>
-          <Line x1={a[0]} y1={a[1]} x2={p[0]} y2={p[1]} stroke="#000" strokeOpacity={.3} strokeWidth={6} strokeLinecap="round" />
-          <Line x1={a[0]} y1={a[1]} x2={p[0]} y2={p[1]} stroke="#ffffff" strokeOpacity={.35} strokeWidth={2} strokeDasharray="3 9" strokeLinecap="round" />
-        </React.Fragment>;
-      })}
+      {!!paths.litOuter && <Path d={paths.litOuter} stroke={look.beam} strokeWidth={18} strokeOpacity={.18} strokeLinecap="round" />}
+      {!!paths.litInner && <Path d={paths.litInner} stroke={look.beam} strokeWidth={7} strokeOpacity={.55} strokeLinecap="round" />}
+      {!!paths.litCore && <Path d={paths.litCore} stroke={look.beamGlow} strokeWidth={2.6} strokeLinecap="round" />}
+      {!!paths.dim && <Path d={paths.dim} stroke="#000" strokeOpacity={.3} strokeWidth={6} strokeLinecap="round" />}
+      {!!paths.dash && <Path d={paths.dash} stroke="#ffffff" strokeOpacity={.35} strokeWidth={2} strokeDasharray="3 9" strokeLinecap="round" />}
     </Svg>
   </View>;
 });
 
 /** Bright motes of light racing along the lit beams of the world in view. */
-function Motes({ section, nodeX, nodeY, lit }: { section: Section; nodeX: (c: number, i: number) => number; nodeY: (s: Section, i: number) => number; lit: number }) {
+function Motes({ section, nodeX, nodeY, lit, active }: { section: Section; nodeX: (c: number, i: number) => number; nodeY: (s: Section, i: number) => number; lit: number; active: boolean }) {
   const look = looks[section.chapter]!;
   const count = Math.min(lit, LEVELS_PER_CHAPTER);
   const xs = Array.from({ length: count }, (_, i) => nodeX(section.chapter, i));
   const ys = Array.from({ length: count }, (_, i) => nodeY(section, i));
   const vals = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
   useEffect(() => {
-    if (count < 2) return;
+    if (!active || count < 2) return;
     const loops = vals.map((v, k) => Animated.loop(Animated.sequence([
       Animated.delay(k * 900),
       Animated.timing(v, { toValue: 1, duration: (count - 1) * 520, easing: Easing.linear, useNativeDriver: nativeDriver }),
@@ -202,7 +224,7 @@ function Motes({ section, nodeX, nodeY, lit }: { section: Section; nodeX: (c: nu
     ])));
     loops.forEach(l => l.start());
     return () => loops.forEach(l => l.stop());
-  }, [vals, count]);
+  }, [vals, count, active]);
   if (count < 2) return null;
   const input = xs.map((_, i) => i / (count - 1));
   return <>{vals.map((v, k) => <Animated.View key={k} pointerEvents="none" style={[s.mote, {
@@ -247,6 +269,7 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
   const ref = useRef<ScrollView>(null);
   const next = unlockedLevel(progress, levels.length + 1);
   const current = useRef(-1);
+  const chapterTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [chapter, setChapter] = useState(0);
   const [band, setBand] = useState(0);
   const total = totalShards(progress);
@@ -262,9 +285,18 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
     for (const sec of layout.sections) if (sec.chapter > 0 && mid >= sec.gateTop + sec.gateH / 2) c = sec.chapter;
     const sec = layout.sections[c]!;
     scroll.progress = Math.min(1, Math.max(0, (mid - sec.levelsTop) / sec.levelsH));
-    if (c !== current.current) { current.current = c; setChapter(c); onChapter(c); }
-    setBand(b => (Math.abs(b - y) > 240 ? Math.round(y / 240) * 240 : b));
+    if (c !== current.current) {
+      const initial = current.current < 0;
+      current.current = c;
+      setChapter(c);
+      if (chapterTimer.current) clearTimeout(chapterTimer.current);
+      if (initial) onChapter(c);
+      else chapterTimer.current = setTimeout(() => { chapterTimer.current = undefined; onChapter(c); }, 180);
+    }
+    const bandSize = Math.max(240, height * .6);
+    setBand(b => (Math.floor(b / bandSize) !== Math.floor(y / bandSize) ? Math.floor(y / bandSize) * bandSize : b));
   }, [layout, height, scroll, onChapter]);
+  useEffect(() => () => { if (chapterTimer.current) clearTimeout(chapterTimer.current); }, []);
   useEffect(() => {
     const y = focusY(Math.min(focus, levels.length));
     update(y);
@@ -275,7 +307,8 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, width, height]);
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => update(e.nativeEvent.contentOffset.y);
-  const nearView = (y: number) => y > band - height * 1.2 && y < band + height * 2.2;
+  const nearView = (y: number) => y > band - height * .8 && y < band + height * 1.5;
+  const sectionNear = (sec: Section) => sec.levelsTop < band + height * 1.6 && sec.levelsTop + sec.levelsH > band - height * .8;
   return <View style={StyleSheet.absoluteFill}>
     <Weather chapter={chapter} width={width} height={height} />
     <ScrollView ref={ref} onScroll={onScroll} scrollEventThrottle={32} showsVerticalScrollIndicator={false} contentContainerStyle={{ height: layout.total }}>
@@ -283,18 +316,17 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
         const first = sec.chapter * LEVELS_PER_CHAPTER + 1;
         const reached = Math.max(0, Math.min(LEVELS_PER_CHAPTER, next - first + 1));
         return <React.Fragment key={sec.chapter}>
-          <Gate section={sec} progress={progress} width={width} next={next} hearts={hearts} seen={seen} safeTop={safe.top} onWatch={onWatch} />
-          <Beams section={sec} width={width} nodeX={layout.nodeX} nodeY={layout.nodeY} lit={reached} />
-          {sec.chapter === chapter && <Motes section={sec} nodeX={layout.nodeX} nodeY={layout.nodeY} lit={reached} />}
+          {nearView(sec.gateTop + sec.gateH / 2) && <Gate section={sec} progress={progress} width={width} next={next} hearts={hearts} seen={seen} safeTop={safe.top} active onWatch={onWatch} />}
+          {sectionNear(sec) && <Beams section={sec} width={width} nodeX={layout.nodeX} nodeY={layout.nodeY} lit={reached} />}
+          {sec.chapter === chapter && <Motes section={sec} nodeX={layout.nodeX} nodeY={layout.nodeY} lit={reached} active={sectionNear(sec)} />}
           {Array.from({ length: LEVELS_PER_CHAPTER }, (_, i) => {
             const id = first + i;
             const lvl = levels[id - 1]!;
             const state: MiniState = id === next ? 'current' : progress[id] ? 'done' : 'locked';
-            const W = boardWidth(id, lvl.boss);
             const y = layout.nodeY(sec, i);
-            return <View key={id} style={{ position: 'absolute', left: layout.nodeX(sec.chapter, i) - W / 2, top: y - miniCenter(W) }}>
-              <LevelNode id={id} state={state} shards={progress[id]?.stars ?? 0} near={nearView(y)} />
-            </View>;
+            const W = boardWidth(id, lvl.boss);
+            return <MapLevel key={id} id={id} state={state} shards={progress[id]?.stars ?? 0} active={nearView(y)}
+              left={layout.nodeX(sec.chapter, i) - W / 2} top={y - miniCenter(W)} />;
           })}
         </React.Fragment>;
       })}

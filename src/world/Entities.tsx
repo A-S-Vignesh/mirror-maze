@@ -49,7 +49,7 @@ function Burst({ trigger, color, count = 8, spread = .8, rise = .6, size = .35, 
 
 const dustColors = ['#f3dcc0', '#bfe8ff', '#ffd89a', '#ffffff', '#7ae8ff'];
 
-export function MirrorPiece({ mirror, orientation, thawed, hint, hitAt, clock, look, chapter, delay, onTap, onBlocked, sounds }: {
+export const MirrorPiece = React.memo(function MirrorPiece({ mirror, orientation, thawed, hint, hitAt, clock, look, chapter, delay, onTap, onBlocked, sounds }: {
   mirror: Mirror; orientation: Orientation; thawed: boolean; hint: boolean; hitAt?: number; clock: BeamClock; look: Look; chapter: number;
   delay: number; onTap?: () => void; onBlocked?: () => void; sounds: boolean;
 }) {
@@ -61,12 +61,10 @@ export function MirrorPiece({ mirror, orientation, thawed, hint, hitAt, clock, l
   const appear = useAppear(delay);
   const spring = useRef({ angle: orientation * Math.PI / 2 + Math.PI / 4, target: orientation * Math.PI / 2 + Math.PI / 4, vel: 0 });
   const last = useRef(orientation);
-  const [puff, setPuff] = React.useState(0);
   const wobble = useRef(0);
   const melt = useRef(mirror.frozen && !thawed ? 1 : 0);
   const wasThawed = useRef(thawed);
   if (last.current !== orientation) { spring.current.target += Math.PI / 2; last.current = orientation; }
-  useEffect(() => { if (orientation !== undefined) setPuff(p => p + 1); }, [orientation]);
   useEffect(() => {
     if (mirror.frozen && thawed && !wasThawed.current && sounds) { audio.play('thaw'); audio.haptic('heavy'); }
     wasThawed.current = thawed;
@@ -117,7 +115,7 @@ export function MirrorPiece({ mirror, orientation, thawed, hint, hitAt, clock, l
       <mesh position={[.54, 0, -.02]} rotation={[-Math.PI / 2, 0, Math.PI]}><circleGeometry args={[.13, 3]} />
         <meshBasicMaterial color={hint ? '#9dff7a' : '#7fe8ff'} toneMapped={false} side={2} /></mesh>
     </group>
-    <Burst trigger={puff} color={dustColors[chapter]!} count={9} spread={.9} rise={.35} size={.42} y={.12} />
+    <Burst trigger={orientation} color={dustColors[chapter]!} count={9} spread={.9} rise={.35} size={.42} y={.12} />
     {mirror.frozen && <Burst trigger={thawed ? 1 : 0} color="#e8fbff" count={12} spread={.7} rise={1.6} size={.55} y={.5} duration={1.2} />}
     {hint && <HintArrow />}
     {onTap && <mesh position={[0, .75, 0]} visible={false}
@@ -125,9 +123,9 @@ export function MirrorPiece({ mirror, orientation, thawed, hint, hitAt, clock, l
       <boxGeometry args={[1, 1.7, 1]} /><meshBasicMaterial />
     </mesh>}
   </group>;
-}
+});
 
-export function HintArrow() {
+export const HintArrow = React.memo(function HintArrow() {
   const ref = useRef<Group>(null);
   const pulse = useRef<Mesh>(null);
   useFrame(({ clock }) => {
@@ -145,13 +143,13 @@ export function HintArrow() {
       <ringGeometry args={[.55, .7, 40]} /><meshBasicMaterial color="#9dff7a" transparent opacity={.9} depthWrite={false} toneMapped={false} />
     </mesh>
   </>;
-}
+});
 
 const blockLooks = [
   { color: '#a9a7b5', top: '#5fa64a' }, { color: '#5d6a5a', top: '#3f8a36' }, { color: '#d4ae78', top: '#e8c58c' },
   { color: '#7fb8e0', top: '#ffffff' }, { color: '#2e3346', top: '#5ae0ff' },
 ];
-export function BlockerPiece({ chapter, delay }: { chapter: number; delay: number }) {
+export const BlockerPiece = React.memo(function BlockerPiece({ chapter, delay }: { chapter: number; delay: number }) {
   const root = useRef<Group>(null);
   const appear = useAppear(delay);
   useFrame(({ clock }) => { if (root.current) root.current.scale.setScalar(Math.max(.001, appear(clock.elapsedTime))); });
@@ -165,9 +163,9 @@ export function BlockerPiece({ chapter, delay }: { chapter: number; delay: numbe
       : <mesh position={[0, .47, 0]} scale={[.42, .08, .4]}><icosahedronGeometry args={[1, 1]} /><meshStandardMaterial color={l.top} flatShading roughness={.9} /></mesh>}
     {chapter === 2 && [[-.2, .1], [.15, -.12], [0, .25]].map(([x, y], i) => <mesh key={i} position={[x!, y!, .456]}><boxGeometry args={[.16, .04, .01]} /><meshStandardMaterial color="#8a5a2a" /></mesh>)}
   </group></group>;
-}
+});
 
-export function SplitterPiece({ hitAt, clock, delay }: { hitAt?: number; clock: BeamClock; delay: number }) {
+export const SplitterPiece = React.memo(function SplitterPiece({ hitAt, clock, delay }: { hitAt?: number; clock: BeamClock; delay: number }) {
   const prism = useRef<Group>(null);
   const glow = useRef<Sprite>(null);
   const root = useRef<Group>(null);
@@ -189,9 +187,9 @@ export function SplitterPiece({ hitAt, clock, delay }: { hitAt?: number; clock: 
       <Glow color="#ff7ad8" scale={.6} position={[-.25, 0, 0]} opacity={.5} />
     </group>
   </group>;
-}
+});
 
-export function PortalPiece({ delay, exit }: { delay: number; exit?: boolean }) {
+export const PortalPiece = React.memo(function PortalPiece({ delay, exit }: { delay: number; exit?: boolean }) {
   const ring = useRef<Mesh>(null);
   const root = useRef<Group>(null);
   const appear = useAppear(delay);
@@ -207,10 +205,10 @@ export function PortalPiece({ delay, exit }: { delay: number; exit?: boolean }) 
       <Glow color="#b07aff" scale={2} opacity={.7} />
     </group>
   </group>;
-}
+});
 
 const linkColors = ['#7aff6a', '#7aff6a', '#ffd34a', '#9ff0ff', '#5ae0ff'];
-export function LinkVine({ a, b, chapter, pulse }: { a: Point; b: Point; chapter: number; pulse: number }) {
+export const LinkVine = React.memo(function LinkVine({ a, b, chapter, pulse }: { a: Point; b: Point; chapter: number; pulse: number }) {
   const mat = useRef<MeshStandardMaterial>(null);
   const start = useRef(-10);
   const last = useRef(pulse);
@@ -226,10 +224,10 @@ export function LinkVine({ a, b, chapter, pulse }: { a: Point; b: Point; chapter
   });
   const color = linkColors[chapter]!;
   return <mesh geometry={geometry}><meshStandardMaterial ref={mat} color={color} emissive={color} emissiveIntensity={.6} roughness={.6} toneMapped={false} /></mesh>;
-}
+});
 const curseTint = ['#ff3a6a', '#ff4a3a', '#ff2a2a', '#c43aff', '#ff2ad0'];
 /** A cursed shadow gem: drinks any light that touches it, and the level cannot be won while it feeds. */
-export function CursedGem({ hitAt, clock, chapter, delay, sounds }: { hitAt?: number; clock: BeamClock; chapter: number; delay: number; sounds: boolean }) {
+export const CursedGem = React.memo(function CursedGem({ hitAt, clock, chapter, delay, sounds }: { hitAt?: number; clock: BeamClock; chapter: number; delay: number; sounds: boolean }) {
   const root = useRef<Group>(null);
   const gem = useRef<Group>(null);
   const ring = useRef<Mesh>(null);
@@ -281,4 +279,4 @@ export function CursedGem({ hitAt, clock, chapter, delay, sounds }: { hitAt?: nu
       <ringGeometry args={[.5, .62, 40]} /><meshBasicMaterial color={tint} transparent opacity={0} depthWrite={false} toneMapped={false} />
     </mesh>
   </group>;
-}
+});

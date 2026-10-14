@@ -1,11 +1,14 @@
 import React, { ComponentProps, useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Canvas as WebCanvas } from '@react-three/fiber';
 import { GameText } from '../ui/GameText';
 import { ToyButton } from '../ui/Toy';
+import { AdaptiveResolution } from './AdaptiveResolution';
 export { useFrame, useThree } from '@react-three/fiber';
 
 export function Canvas(props: ComponentProps<typeof WebCanvas>) {
+  const { width } = useWindowDimensions();
+  const maxDpr = width < 768 ? 1.5 : 1.75;
   const [lost,setLost]=useState(false);
   const [attempt,setAttempt]=useState(0);
   const cleanup=useRef<()=>void>(()=>{});
@@ -14,12 +17,12 @@ export function Canvas(props: ComponentProps<typeof WebCanvas>) {
     <GameText size={18} font="bold">Graphics were interrupted. Your puzzle is safe!</GameText>
     <ToyButton title="Restore graphics" tint="blue" height={50} fontSize={18} onPress={()=>{cleanup.current();setAttempt(n=>n+1);setLost(false);}}/>
   </View>;
-  return <WebCanvas key={attempt} dpr={[1, 1.75]} {...props} onCreated={state=>{
+  return <WebCanvas key={attempt} dpr={[1, maxDpr]} {...props} onCreated={state=>{
     const canvas=state.gl.domElement;
     const onLost=(event:Event)=>{event.preventDefault();console.warn('WebGL context lost; graphics recovery is available.');setLost(true);};
     cleanup.current();
     canvas.addEventListener('webglcontextlost',onLost);
     cleanup.current=()=>canvas.removeEventListener('webglcontextlost',onLost);
     props.onCreated?.(state);
-  }}/>;
+  }}>{props.children}<AdaptiveResolution maxDpr={maxDpr} /></WebCanvas>;
 }

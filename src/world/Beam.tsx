@@ -70,7 +70,7 @@ function Ribbon({ seg, look, clock, width }: { seg: Seg; look: Look; clock: Beam
 
 const sparkTint = ['#fff1c4', '#c8fbff', '#ffd27a', '#efe4ff', '#ffc4ec'];
 
-function Spark({ point, at, clock, kind, sounds, look }: { point: [number, number]; at: number; clock: BeamClock; kind: string; sounds: boolean; look: Look }) {
+function Spark({ point, at, clock, kind, sounds, look }: { point: readonly [number, number]; at: number; clock: BeamClock; kind: string; sounds: boolean; look: Look }) {
   const ref = useRef<Sprite>(null);
   const mat = useMemo(() => new SpriteMaterial({ map: sparkTexture, color: kind === 'hazard' ? '#ff3a5a' : kind === 'blocker' ? look.beam : sparkTint[look.beamStyle], transparent: true,
     depthWrite: false, blending: AdditiveBlending, toneMapped: false }), [kind, look]);

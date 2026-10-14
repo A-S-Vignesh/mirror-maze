@@ -1,12 +1,14 @@
 import React, { ComponentProps } from 'react';
 import { PixelRatio } from 'react-native';
 import { Canvas as NativeCanvas } from '@react-three/fiber/native';
+import { AdaptiveResolution } from './AdaptiveResolution';
 export { useFrame, useThree } from '@react-three/fiber/native';
 
-// Phones can report 3x+ pixel density; cap it so mid-range GPUs keep a smooth frame rate.
+// Keep high-density phone renders crisp without paying the full 2x+ pixel fill cost.
 export function Canvas(props: ComponentProps<typeof NativeCanvas>) {
+  const maxDpr = Math.min(1.5, PixelRatio.get());
   return <NativeCanvas {...props} onCreated={state => {
-    state.setDpr(Math.min(2, PixelRatio.get()));
+    state.setDpr(maxDpr);
     props.onCreated?.(state);
-  }} />;
+  }}>{props.children}<AdaptiveResolution maxDpr={maxDpr} /></NativeCanvas>;
 }

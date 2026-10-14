@@ -54,6 +54,7 @@ let active = true;
 let duck = 1;
 let unlocked = Platform.OS !== 'web';
 let failureListener: ((message: string) => void) | undefined;
+let chapterTimer: ReturnType<typeof setTimeout> | undefined;
 
 function fail(cause: unknown) {
   console.warn('Optional audio unavailable', cause);
@@ -89,7 +90,16 @@ export const audio = {
   init() { void setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined); },
   onFailure(listener: (message: string) => void) { failureListener = listener; },
   configure(next: typeof options, isActive: boolean) { options = next; active = isActive; sync(); },
-  setChapter(next: number) { if (next !== chapter) { chapter = next; sync(); } },
+  setChapter(next: number, afterScroll = false) {
+    if (chapterTimer) clearTimeout(chapterTimer);
+    chapterTimer = undefined;
+    if (afterScroll) {
+      chapterTimer = setTimeout(() => {
+        chapterTimer = undefined;
+        if (next !== chapter) { chapter = next; sync(); }
+      }, 180);
+    } else if (next !== chapter) { chapter = next; sync(); }
+  },
   /** Lowers the music under cinematic stingers. */
   setDuck(level: number) { duck = level; if (musicPlayer) musicPlayer.volume = .3 * duck; },
   unlock() { if (!unlocked) { unlocked = true; sync(); } },
@@ -112,6 +122,8 @@ export const audio = {
     void run.catch(() => undefined);
   },
   dispose() {
+    if (chapterTimer) clearTimeout(chapterTimer);
+    chapterTimer = undefined;
     Object.values(players).forEach(p => p?.remove());
     [musicPlayer, ambPlayer].forEach(p => p?.remove());
     musicPlayer = ambPlayer = undefined;

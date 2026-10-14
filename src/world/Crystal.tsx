@@ -13,7 +13,7 @@ export const CHARGE_TIME = 1.7;
 const GEM_BOTTOM = -.62;
 const pedestalColors = ['#d7c3a6', '#6f7b68', '#d9b27a', '#cfe6f6', '#3a3f58'];
 
-export function CrystalPiece({ at, clock, win, index, look, chapter, heart, delay, sounds }: {
+export const CrystalPiece = React.memo(function CrystalPiece({ at, clock, win, index, look, chapter, heart, delay, sounds }: {
   at?: number; clock: BeamClock; win: WinClock; index: number; look: Look; chapter: number; heart: boolean; delay: number; sounds: boolean;
 }) {
   const root = useRef<Group>(null);
@@ -123,4 +123,4 @@ export function CrystalPiece({ at, clock, win, index, look, chapter, heart, dela
     <mesh ref={pillar} position={[0, 7, 0]} visible={false}><cylinderGeometry args={[.5, .5, 12, 20, 1, true]} />
       <meshBasicMaterial color={look.crystal} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} side={2} /></mesh>
   </group>;
-}
+});
