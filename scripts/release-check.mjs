@@ -163,7 +163,8 @@ function checkApk(path) {
 function checkAab(path) {
   const label = path.split(/[\\/]/).pop();
   const entries = zipEntries(readFileSync(path));
-  const owner = /Owner: (.+)/.exec(run('keytool', ['-printcert', '-jarfile', path]))?.[1] ?? 'unsigned';
+  const keytool = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'keytool.exe' : 'keytool') : 'keytool';
+  const owner = /Owner: (.+)/.exec(run(keytool, ['-printcert', '-jarfile', path]))?.[1] ?? 'unsigned';
   report(owner === 'unsigned' || /Android Debug/.test(owner) ? 'FAIL' : 'PASS', `${label}: signed with the upload key`,
     owner === 'unsigned' ? 'unsigned' : `${owner}${/Android Debug/.test(owner) ? ': Play Console rejects debug-signed bundles' : ''}`);
   checkEntries(entries, 'base/', label);

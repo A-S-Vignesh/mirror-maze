@@ -229,7 +229,10 @@ export const audio = {
       const p = v.player;
       v.until = now + (lengths[key] ?? RING_MS);
       p.volume = (volumes[key] ?? 1) * volume;
-      void p.seekTo(0).then(() => p.play()).catch(fail);
+      // Effects let go while this one was starting (sound switched off, an ad or another app took the screen) leave it
+      // silent; that is not a broken sound, so the player is not told some sounds are unavailable.
+      const kept = () => voices[key]?.includes(v) ?? false;
+      void p.seekTo(0).then(() => { if (kept()) p.play(); }).catch(cause => { if (kept()) fail(cause); });
     } catch (cause) { fail(cause); }
   },
   haptic(kind: 'tap' | 'success' | 'error' | 'heavy' = 'tap') {
