@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TextStyle, View } from 'react-native';
+import { StyleSheet, Text, TextStyle, View, useWindowDimensions } from 'react-native';
 import { fonts, GameTextProps } from './fonts';
 export { fonts } from './fonts';
 export type { GameTextProps } from './fonts';
@@ -25,15 +25,19 @@ export function GameText({ children, size = 20, color = '#fff', stroke = '#16306
   // Android measures letter-spaced text a little narrower than it draws it, so the last letter wrapped onto a hidden
   // second line ("STOR" for STORY). Room for the spacing, split evenly so centred text stays centred.
   const spacing = StyleSheet.flatten(style)?.letterSpacing ?? 0;
+  // Android scales letter spacing by the full font size setting, past the cap where the letters stop growing; above the
+  // cap it is scaled back so the spacing stays in step with the letters.
+  const { fontScale } = useWindowDimensions();
+  const capped = spacing && fontScale > MAX_FONT_SCALE ? { letterSpacing: spacing * MAX_FONT_SCALE / fontScale } : undefined;
   const base: TextStyle = { fontFamily: fonts[font], fontSize: size, lineHeight: size * 1.18, textAlign: align, includeFontPadding: false,
     paddingHorizontal: spacing > 0 ? spacing / 2 + 1 : 0 };
   const copy = (key: string, x: number, y: number) =>
     <Text key={key} {...lines} accessible={false} importantForAccessibility="no-hide-descendants"
-      style={[base, style, { color: stroke, position: 'absolute', left: x, right: -x, top: y }]}>{children}</Text>;
+      style={[base, style, capped, { color: stroke, position: 'absolute', left: x, right: -x, top: y }]}>{children}</Text>;
   const outline = strokeWidth > 0 ? directions(strokeWidth) : [];
   return <View style={containerStyle}>
     {depth > 0 && outline.map((o, i) => copy(`d${i}`, o.x, o.y + depth))}
     {outline.map((o, i) => copy(`o${i}`, o.x, o.y))}
-    <Text {...lines} style={[base, style, { color }]}>{children}</Text>
+    <Text {...lines} style={[base, style, capped, { color }]}>{children}</Text>
   </View>;
 }
