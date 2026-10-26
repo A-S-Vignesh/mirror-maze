@@ -12,10 +12,16 @@ const directions = (w: number) => {
   });
 };
 
+/**
+ * How far the game's text follows the phone's font size setting. Up to "Large" (1.15) the layouts keep their shape; at
+ * 1.3 the HUD's sunrays count was cut off, and at 2.0 labels overlapped the buttons and each other.
+ */
+const MAX_FONT_SCALE = 1.15;
+
 // Native has no text stroke, so the outline is built from offset copies of the label.
 export function GameText({ children, size = 20, color = '#fff', stroke = '#16306b', strokeWidth = 3, depth = 0,
   font = 'display', style, containerStyle, numberOfLines, align = 'center', fit }: GameTextProps) {
-  const lines = fit ? { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: .6 } : { numberOfLines };
+  const lines = { maxFontSizeMultiplier: MAX_FONT_SCALE, ...(fit ? { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: .6 } : { numberOfLines }) };
   // Android measures letter-spaced text a little narrower than it draws it, so the last letter wrapped onto a hidden
   // second line ("STOR" for STORY). Room for the spacing, split evenly so centred text stays centred.
   const spacing = StyleSheet.flatten(style)?.letterSpacing ?? 0;
