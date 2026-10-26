@@ -119,14 +119,18 @@ function checkEntries(entries, prefix, label) {
   report(maps.length ? 'FAIL' : 'PASS', `${label}: no source maps shipped`, maps.slice(0, 5).join(', '));
 }
 
-function checkManifest(label, { packageName, versionCode, versionName, minSdk, targetSdk, debuggable, permissions, gameCategory }) {
+function checkManifest(label, { packageName, versionCode, versionName, minSdk, targetSdk, debuggable, permissions, keepsOrientation, gameCategory }) {
   report('INFO', `${label}: package / version`, `${packageName} ${versionName} (versionCode ${versionCode}), minSdk ${minSdk}`);
   report(packageName === 'com.lightkeeper.mirrormaze' ? 'PASS' : 'FAIL', `${label}: application id`, packageName);
   report(Number(targetSdk) >= MIN_TARGET_SDK ? 'PASS' : 'FAIL', `${label}: targetSdk ≥ ${MIN_TARGET_SDK}`, String(targetSdk));
   report(debuggable ? 'FAIL' : 'PASS', `${label}: not debuggable`);
   const unexpected = permissions.filter(p => !EXPECTED_PERMISSIONS.has(p));
   report(unexpected.length ? 'FAIL' : 'PASS', `${label}: only the expected permissions`, unexpected.join(', ') || permissions.length + ' declared');
-  report(gameCategory ? 'PASS' : 'WARN', `${label}: android:appCategory="game" (keeps the portrait lock on large screens, Android 16)`, gameCategory ? '' : 'missing');
+  report(keepsOrientation || Number(targetSdk) >= 37 ? (Number(targetSdk) >= 37 ? 'WARN' : 'PASS') : 'FAIL',
+    `${label}: portrait lock kept on large screens (Android 16, PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY)`,
+    Number(targetSdk) >= 37 ? 'the opt-out is ignored from targetSdk 37: decide on appCategory="game" or a large-screen layout' : keepsOrientation ? '' : 'missing');
+  // Declaring the app a game opts it into Android's game default frame rate (60 fps on many 120 Hz phones).
+  report(gameCategory ? 'WARN' : 'PASS', `${label}: not declared android:appCategory="game"`, gameCategory ? 'game default frame rate applies' : '');
 }
 
 /** What an APK's manifest declares, read with aapt2. */
@@ -139,6 +143,7 @@ function apkManifest(path) {
     minSdk: /minSdkVersion:'(\d+)'/.exec(badging)?.[1], targetSdk: /targetSdkVersion:'(\d+)'/.exec(badging)?.[1],
     debuggable: /application-debuggable/.test(badging),
     permissions: [...badging.matchAll(/uses-permission: name='([^']+)'/g)].map(m => m[1]),
+    keepsOrientation: /PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY/.test(tree),
     // appCategory "game" is the enum value 0.
     gameCategory: /:appCategory\(0x[0-9a-f]+\)=(?:\(type 0x10\))?0(?:x0)?\b/.test(tree),
   };

@@ -5,14 +5,17 @@ const { AndroidConfig, withAndroidManifest, withAppBuildGradle } = require('expo
  *
  * 1. expo-audio declares a lock-screen media service and a microphone recording service (foreground services). The game
  *    only plays sounds while it is open, so both are removed; their permissions are blocked in app.json.
- * 2. The app is declared a game (android:appCategory). For apps targeting Android 16, the system ignores the portrait lock
- *    on screens at least 600 dp wide (tablets, unfolded foldables) unless the app is a game, so without it the game
- *    would be stretched into landscape there.
+ * 2. The portrait lock is kept on large screens. For apps targeting Android 16, the system ignores it on screens at
+ *    least 600 dp wide (tablets, unfolded foldables), which stretched the portrait layout into landscape. The opt-out
+ *    property keeps the old behaviour (portrait, letterboxed). It stops working once the app targets API 37; declaring
+ *    android:appCategory="game" would also exempt it, but that opts the game into Android's game default frame rate
+ *    (60 fps on many 120 Hz phones), so it is left for the developer to decide then.
  * 3. Release builds are signed with the upload key when its four Gradle properties are set (keep them out of the
  *    repository, in ~/.gradle/gradle.properties or as -P flags). Without them, release builds keep the debug key, which is
  *    fine for sideloaded test APKs but rejected by Play Console.
  */
 const UNUSED_SERVICES = ['expo.modules.audio.service.AudioControlsService', 'expo.modules.audio.service.AudioRecordingService'];
+const KEEP_ORIENTATION = 'android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY';
 
 const UPLOAD_KEY = `
         release {
@@ -29,7 +32,8 @@ function withReleaseManifest(config) {
   return withAndroidManifest(config, c => {
     const manifest = c.modResults;
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
-    app.$['android:appCategory'] = 'game';
+    app.property = (app.property ?? []).filter(p => p.$['android:name'] !== KEEP_ORIENTATION);
+    app.property.push({ $: { 'android:name': KEEP_ORIENTATION, 'android:value': 'true' } });
     manifest.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     app.service = (app.service ?? []).filter(s => !UNUSED_SERVICES.includes(s.$['android:name']));
     for (const name of UNUSED_SERVICES) app.service.push({ $: { 'android:name': name, 'tools:node': 'remove' } });
