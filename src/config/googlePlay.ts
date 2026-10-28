@@ -16,17 +16,25 @@ export const REMOVE_ADS_PRODUCT = 'remove_ads';
 
 /** Play Games achievement ids ("CgkI…"), from Play Console > Play Games Services > Achievements. */
 export const ACHIEVEMENT_IDS: Record<AchievementKey, string> = {
-  firstLight: '',
-  skyTemples: '',
-  rainforest: '',
-  desert: '',
-  iceAge: '',
-  theVoid: '',
-  firstHeart: '',
-  lightkeeper: '',
+  firstLight: 'CgkItYzP0esTEAIQAQ',
+  flawless: 'CgkItYzP0esTEAIQAw',
+  skyTemples: 'CgkItYzP0esTEAIQAg',
+  skyHeart: 'CgkItYzP0esTEAIQBA',
+  rainforest: 'CgkItYzP0esTEAIQBQ',
+  lifeHeart: 'CgkItYzP0esTEAIQBg',
+  desert: 'CgkItYzP0esTEAIQBw',
+  sunHeart: 'CgkItYzP0esTEAIQCA',
+  iceAge: 'CgkItYzP0esTEAIQCQ',
+  frostHeart: 'CgkItYzP0esTEAIQCg',
+  theVoid: 'CgkItYzP0esTEAIQCw',
+  starHeart: 'CgkItYzP0esTEAIQDQ',
+  lightkeeper: 'CgkItYzP0esTEAIQDA',
 };
 
-/** The "Crystal Shards" leaderboard id ("CgkI…"): total shards, higher is better. */
+/**
+ * A "Crystal Shards" leaderboard id ("CgkI…"): total shards, higher is better. Empty on purpose: shards stop at 270, so
+ * every finisher would tie. While empty, the Ranks orb is hidden and no scores are sent.
+ */
 export const SHARDS_LEADERBOARD = '';
 
 /**

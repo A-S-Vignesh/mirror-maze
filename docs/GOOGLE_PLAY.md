@@ -1,14 +1,14 @@
 # Google Play: ads, Remove Ads, Play Games and cloud save
 
 Mirror Maze earns from AdMob interstitials and a one-time **Remove Ads** purchase, and uses Google Play Games Services
-for achievements, a leaderboard and a cloud save. Everything ships in a safe default state until you fill in the IDs
+for achievements and a cloud save. Everything ships in a safe default state until you fill in the IDs
 from the AdMob and Play Console dashboards (steps below):
 
 | Feature | Before setup | After setup |
 | --- | --- | --- |
 | Interstitial ads | Google's **test** ads (labelled "Test Ad") | Your ad unit, real revenue |
 | Remove Ads | Pause and Settings show it as "One-time purchase" (no price). Google Play answers "unavailable" until the app and product exist in Play Console | Your localised price on Pause and Settings (Home shows the icon only); a tap opens Google Play's purchase sheet |
-| Play Games (achievements, leaderboard, cloud save) | Hidden. The SDK never starts | Automatic sign-in, Awards/Ranks on Home, cloud save |
+| Play Games (achievements, cloud save) | Hidden. The SDK never starts | Automatic sign-in, Awards on Home, cloud save |
 
 All IDs live in two places:
 
@@ -16,7 +16,7 @@ All IDs live in two places:
   Games project ID) in the `./modules/google-play/app.plugin.js` plugin. These are native settings, so after changing them
   run `npx expo prebuild --platform android --clean` and rebuild.
 - **`src/config/googlePlay.ts`**: the interstitial ad unit, the Remove Ads product ID, the achievement IDs and the
-  leaderboard ID. Any build picks these up.
+  (optional, unused) leaderboard ID. Any build picks these up.
 
 ## How it behaves in the game
 
@@ -44,8 +44,8 @@ after 3 days). There is no server, so purchases aren't verified server-side, whi
 Remove Ads unlock.
 
 **Play Games.** Returning players are signed in automatically at launch. Others can sign in from Settings or by tapping
-Awards / Ranks on Home. The game unlocks achievements and submits the total shard count after each change, and again at
-sign-in, so progress earned before signing in still counts.
+Awards on Home. The game unlocks achievements after each change, and again at sign-in, so progress earned before
+signing in still counts.
 
 **Cloud save (Saved Games).** One save slot, `mirror-maze`, holding level results and story moments (settings and the ad
 count stay on each phone). Whenever the journey changes it is merged with the cloud both ways: each level keeps its best
@@ -96,7 +96,7 @@ unlocked.
 
 1. **Grow users > Play Games Services > Setup and management > Configuration**: create a new Play Games project for this
    app.
-2. **Credentials**: add an **Android** credential (package `com.lightkeeper.mirrormaze`) for each key that signs builds
+2. **Credentials**: add an **Android** credential (package `com.ynotstudio.mirrormaze`) for each key that signs builds
    you will run:
    - **Play app signing key:** the SHA-1 is under Play Console > Setup > App signing. This covers installs from Google
      Play.
@@ -106,22 +106,30 @@ unlocked.
 
    Sign-in fails for any build whose key isn't listed.
 3. **Saved games**: turn it **On** in the game's properties (the cloud save needs it).
-4. **Achievements**: create these 8 (they total 810 XP). Then copy each ID (`CgkI…`) into `ACHIEVEMENT_IDS` under its key:
+4. **Achievements**: create these 13 in this order (they total 970 XP; not incremental, initial state Revealed). Then
+   copy each ID (`CgkI…`) into `ACHIEVEMENT_IDS` under its key:
 
    | Key | Name | Description | XP |
    | --- | --- | --- | --- |
    | `firstLight` | First Light | Bend the light through your first mirror maze. | 10 |
-   | `skyTemples` | The Fallen Sky | Restore the Sky Temples: clear all 18 levels of Chapter 1. | 50 |
-   | `rainforest` | The Storm Canopy | Restore the Emerald Rainforest: clear all 18 levels of Chapter 2. | 75 |
-   | `desert` | The Sinking Sun | Restore the Desert of Pyramids: clear all 18 levels of Chapter 3. | 100 |
-   | `iceAge` | The Frozen Echo | Restore the Ice Age: clear all 18 levels of Chapter 4. | 125 |
-   | `theVoid` | Heart of the Void | Cross the Void: clear all 18 levels of Chapter 5. | 150 |
-   | `firstHeart` | Heartforged | Gather all 54 shards of one world to forge its Heart. | 100 |
+   | `flawless` | Flawless | Earn all three crystal shards on a level. | 10 |
+   | `skyTemples` | The Fallen Sky | Restore the Sky Temples: clear all 18 levels of Chapter 1. | 30 |
+   | `skyHeart` | Sky Heart | Forge the Sky Heart: earn all three shards on every level of Chapter 1. | 60 |
+   | `rainforest` | The Storm Canopy | Restore the Emerald Rainforest: clear all 18 levels of Chapter 2. | 45 |
+   | `lifeHeart` | Life Heart | Forge the Life Heart: earn all three shards on every level of Chapter 2. | 75 |
+   | `desert` | The Sinking Sun | Restore the Desert of Pyramids: clear all 18 levels of Chapter 3. | 60 |
+   | `sunHeart` | Sun Heart | Forge the Sun Heart: earn all three shards on every level of Chapter 3. | 90 |
+   | `iceAge` | The Frozen Echo | Restore the Ice Age: clear all 18 levels of Chapter 4. | 75 |
+   | `frostHeart` | Frost Heart | Forge the Frost Heart: earn all three shards on every level of Chapter 4. | 105 |
+   | `theVoid` | Heart of the Void | Cross the Void: clear all 18 levels of Chapter 5. | 90 |
+   | `starHeart` | Star Heart | Forge the Star Heart: earn all three shards on every level of Chapter 5. | 120 |
    | `lightkeeper` | The Last Lightkeeper | Forge all five Hearts and seal the Void. | 200 |
 
    The same list is in `src/game/achievements.ts`.
-5. **Leaderboards**: create "Crystal Shards" (numeric, no decimals, **larger is better**, limits 0 to 270). Copy its ID
-   into `SHARDS_LEADERBOARD`. The Ranks orb on Home appears once this is set.
+5. **Leaderboards**: none, by choice (2026-10-28). Total shards stop at 270, so every player who finishes would tie for
+   first. With `SHARDS_LEADERBOARD` empty, the Ranks orb stays hidden and no scores are sent. To add one later, create it
+   (for "Crystal Shards": numeric, no decimals, **larger is better**, limits 0 to 270), put its ID in
+   `SHARDS_LEADERBOARD` and rebuild. A published leaderboard can't be deleted, and its ordering can't be changed.
 6. **Testers**: add your accounts. Until the Play Games configuration is published, only testers can sign in.
 7. Copy the numeric **project ID** shown under the game's name into `app.json` > `gamesAppId`.
 8. **Review and publish** the Play Games configuration when ready.
@@ -134,7 +142,7 @@ unlocked.
   cancelling it returns to the same screen. Buy it with a license tester: ads stop, Home shows "AD-FREE ACTIVE" and
   Settings says "Ad-free active".
 - [ ] Reinstall: ads stay removed. Settings > RESTORE confirms it.
-- [ ] Play Games signs in. Clearing level 1 pops "First Light". Awards and Ranks open Google's screens.
+- [ ] Play Games signs in. Clearing level 1 pops "First Light". Awards opens Google's achievements screen.
 - [ ] Clear app data (or use a second phone with the same account) and sign in: "journey restored" appears with the
       progress back.
 

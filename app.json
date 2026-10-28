@@ -9,9 +9,9 @@
     "backgroundColor": "#05030f",
     "newArchEnabled": true,
     "splash": { "image": "./assets/images/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#05030f" },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.lightkeeper.mirrormaze" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.ynotstudio.mirrormaze" },
     "android": {
-      "package": "com.lightkeeper.mirrormaze",
+      "package": "com.ynotstudio.mirrormaze",
       "versionCode": 4,
       "edgeToEdgeEnabled": true,
       "blockedPermissions": [
@@ -31,7 +31,7 @@
         "iosAppId": "ca-app-pub-3940256099942544~1458002511",
         "delayAppMeasurementInit": true
       }],
-      ["./modules/google-play/app.plugin.js", { "gamesAppId": "" }],
+      ["./modules/google-play/app.plugin.js", { "gamesAppId": "681728788021" }],
       "./plugins/withPlayRelease.js"
     ]
   }

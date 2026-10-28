@@ -24,8 +24,8 @@ five Hearts. Together, the Hearts seal the Void.
   Earning all 54 shards in a world forges that world's Heart into the Lightkeeper's Amulet. Forging all
   five Hearts plays the ending.
 - **Google Play**: an AdMob interstitial after every third completed level (on Continue, never during play or a
-  cutscene), a one-time **Remove Ads** purchase, and Google Play Games achievements, a Crystal Shards leaderboard
-  and a cloud save that carries the journey to a new phone. Until the AdMob and Play Console IDs are filled in, ads
+  cutscene), a one-time **Remove Ads** purchase, and Google Play Games achievements and a cloud save that carries
+  the journey to a new phone. Until the AdMob and Play Console IDs are filled in, ads
   are Google's test ads and Play Games stays hidden. Setup steps: [docs/GOOGLE_PLAY.md](docs/GOOGLE_PLAY.md).
 
 ### Mechanics and how difficulty grows
@@ -130,7 +130,6 @@ regenerate.
 | `src/ui/` | Buttons, panels, SVG title art, effects, diagnostic performance overlay |
 | `src/services/` | Saves (validated, versioned, cloud merge), audio, narration, haptics, ads (AdMob), Remove Ads, Play Games |
 | `modules/google-play/` | Local Expo module (Kotlin): Google Play Games Services v2 and Google Play Billing |
-
 ## Tests
 
 ```powershell
@@ -138,7 +137,7 @@ npm run typecheck
 npm test
 ```
 
-There are 268 tests. Every level is checked to be valid, unsolved at the start, with a stored solution that wins on its
+There are 280 tests. Every level is checked to be valid, unsolved at the start, with a stored solution that wins on its
 last tap and an optimal par. Every level is also proven to support all four outcomes within its move limit, by playing
 real tap sequences under the actual rules: 3, 2 and 1 shards, plus a 0-shard loss. Other tests cover each chapter
 modifier (cluster turns, their legality and ordering, and whole-cell landing in every reachable state; floe glides and

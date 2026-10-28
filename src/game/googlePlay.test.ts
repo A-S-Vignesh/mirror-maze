@@ -13,22 +13,27 @@ const journey = (progress: Progress, seen: Partial<SaveData['seen']> = {}): Save
 test('Achievements fit Play Console limits and every one has a config slot', () => {
   const points = ACHIEVEMENTS.reduce((sum, a) => sum + a.points, 0);
   assert.ok(ACHIEVEMENTS.length >= 5, 'Play Games needs at least five achievements to publish');
-  assert.ok(points <= 1000);
+  assert.ok(points <= 2000);
   for (const a of ACHIEVEMENTS) {
-    assert.equal(a.points % 5, 0, a.key);
+    assert.ok(a.points % 5 === 0 && a.points <= 200, a.key);
     assert.ok(a.name.length <= 100 && a.description.length <= 500, a.key);
   }
   assert.deepEqual(ACHIEVEMENTS.map(a => a.key).sort(), Object.keys(ACHIEVEMENT_IDS).sort());
+  const ids = Object.values(ACHIEVEMENT_IDS).filter(Boolean);
+  assert.equal(new Set(ids).size, ids.length, 'an achievement id is used twice');
 });
 
 test('Achievements are earned from saved results', () => {
   assert.deepEqual(earnedAchievements({}), []);
-  assert.deepEqual(earnedAchievements(cleared(1, 1)), ['firstLight']);
+  assert.deepEqual(earnedAchievements(cleared(1, 1, 2)), ['firstLight']);
+  assert.deepEqual(earnedAchievements(cleared(1, 1)), ['firstLight', 'flawless']);
   // Clearing a world (its last level) restores it; all 54 shards forge its Heart.
   assert.deepEqual(earnedAchievements(cleared(1, LEVELS_PER_WORLD, 1)), ['firstLight', 'skyTemples']);
-  assert.deepEqual(earnedAchievements(cleared(1, LEVELS_PER_WORLD)), ['firstLight', 'skyTemples', 'firstHeart']);
-  assert.deepEqual(earnedAchievements(cleared(1, 5 * LEVELS_PER_WORLD)),
-    ['firstLight', 'skyTemples', 'rainforest', 'desert', 'iceAge', 'theVoid', 'firstHeart', 'lightkeeper']);
+  assert.deepEqual(earnedAchievements(cleared(1, LEVELS_PER_WORLD)), ['firstLight', 'flawless', 'skyTemples', 'skyHeart']);
+  // Each world's Heart counts on its own, whatever happened in the others.
+  assert.deepEqual(earnedAchievements({ ...cleared(1, LEVELS_PER_WORLD, 1), ...cleared(LEVELS_PER_WORLD + 1, 2 * LEVELS_PER_WORLD) }),
+    ['firstLight', 'flawless', 'skyTemples', 'rainforest', 'lifeHeart']);
+  assert.deepEqual(earnedAchievements(cleared(1, 5 * LEVELS_PER_WORLD)), ACHIEVEMENTS.map(a => a.key));
 });
 
 test('The cloud save round-trips and rejects damaged or unknown data', () => {

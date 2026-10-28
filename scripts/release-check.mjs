@@ -18,7 +18,7 @@ const EXPECTED_PERMISSIONS = new Set([
   'android.permission.INTERNET', 'android.permission.VIBRATE', 'android.permission.WAKE_LOCK', 'android.permission.ACCESS_NETWORK_STATE',
   'android.permission.MODIFY_AUDIO_SETTINGS', 'com.android.vending.BILLING', 'com.google.android.gms.permission.AD_ID',
   'android.permission.ACCESS_ADSERVICES_AD_ID', 'android.permission.ACCESS_ADSERVICES_ATTRIBUTION', 'android.permission.ACCESS_ADSERVICES_TOPICS',
-  'com.lightkeeper.mirrormaze.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
+  'com.ynotstudio.mirrormaze.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
 ]);
 
 const results = [];
@@ -121,7 +121,7 @@ function checkEntries(entries, prefix, label) {
 
 function checkManifest(label, { packageName, versionCode, versionName, minSdk, targetSdk, debuggable, permissions, keepsOrientation, gameCategory }) {
   report('INFO', `${label}: package / version`, `${packageName} ${versionName} (versionCode ${versionCode}), minSdk ${minSdk}`);
-  report(packageName === 'com.lightkeeper.mirrormaze' ? 'PASS' : 'FAIL', `${label}: application id`, packageName);
+  report(packageName === 'com.ynotstudio.mirrormaze' ? 'PASS' : 'FAIL', `${label}: application id`, packageName);
   report(Number(targetSdk) >= MIN_TARGET_SDK ? 'PASS' : 'FAIL', `${label}: targetSdk ≥ ${MIN_TARGET_SDK}`, String(targetSdk));
   report(debuggable ? 'FAIL' : 'PASS', `${label}: not debuggable`);
   const unexpected = permissions.filter(p => !EXPECTED_PERMISSIONS.has(p));
@@ -153,9 +153,10 @@ function checkApk(path) {
   const label = path.split(/[\\/]/).pop();
   checkManifest(label, apkManifest(path));
   const certs = apksigner(['verify', '--print-certs', '-v', path]);
-  const dn = /Signer #1 certificate DN: (.+)/.exec(certs)?.[1] ?? 'unsigned';
+  // Older apksigner prints "Signer #1 certificate DN", build-tools 37 prints "V2 Signer: certificate DN".
+  const dn = /(?:Signer #1|Signer:) certificate DN: (.+)/.exec(certs)?.[1]?.trim() ?? 'unsigned';
   report(/Verified using v2 scheme.*true/.test(certs) ? 'PASS' : 'FAIL', `${label}: APK signature scheme v2+ verifies`);
-  report(/Android Debug/.test(dn) ? 'WARN' : 'PASS', `${label}: signer`, `${dn}${/Android Debug/.test(dn) ? ' (debug key: fine to sideload, never for Play)' : ''}`);
+  report(dn === 'unsigned' ? 'FAIL' : /Android Debug/.test(dn) ? 'WARN' : 'PASS', `${label}: signer`, `${dn}${/Android Debug/.test(dn) ? ' (debug key: fine to sideload, never for Play)' : ''}`);
   try {
     run(tool('zipalign'), ['-c', '-P', '16', '-v', '4', path]);
     report('PASS', `${label}: zipalign -P 16 (uncompressed libraries on 16 KB boundaries)`);
