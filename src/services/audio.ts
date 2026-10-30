@@ -87,6 +87,9 @@ const AMBIENCE = (c: number) => (c === 1 ? .3 : .24);
 let unlocked = Platform.OS !== 'web';
 let failureListener: ((message: string) => void) | undefined;
 let chapterTimer: ReturnType<typeof setTimeout> | undefined;
+/** The YNOT Studio card's sting, and its fade out. */
+let sting: AudioPlayer | undefined;
+let stingFade: ReturnType<typeof setInterval> | undefined;
 
 function fail(cause: unknown) {
   console.warn('Optional audio unavailable', cause);
@@ -235,6 +238,36 @@ export const audio = {
       void p.seekTo(0).then(() => { if (kept()) p.play(); }).catch(cause => { if (kept()) fail(cause); });
     } catch (cause) { fail(cause); }
   },
+  /**
+   * The studio card's sting is one composed track rather than effects fired from JS timers, so it keeps in step with the
+   * card's native-driven animation while the 3D world holds up the JS thread. It loads when the card appears and starts
+   * `fromMs` in, wherever the card has got to once the save says sound is on (the card decides that, since the sound
+   * settings only reach this service in an effect after its own).
+   */
+  prepareSting() {
+    try { sting ??= createAudioPlayer(require('../../assets/audio/studio.mp3')); } catch (cause) { fail(cause); }
+  },
+  playSting(fromMs: number) {
+    const p = sting;
+    if (!p || !unlocked) return;
+    try {
+      p.volume = .9;
+      void p.seekTo(fromMs / 1000).then(() => { if (sting === p) p.play(); }).catch(cause => { if (sting === p) fail(cause); });
+    } catch (cause) { fail(cause); }
+  },
+  /** Fades the sting out over `ms` (at once when 0) and lets it go. */
+  endSting(ms = 0) {
+    const p = sting;
+    sting = undefined;
+    if (!p) return;
+    if (stingFade) clearInterval(stingFade);
+    let from = 0;
+    try { from = p.playing ? p.volume : 0; } catch { /* already gone */ }
+    stingFade = ramp(from, 0, from ? ms : 0, v => {
+      try { p.volume = v; } catch { /* already gone */ }
+      if (v <= 0) discard(p);
+    });
+  },
   haptic(kind: 'tap' | 'success' | 'error' | 'heavy' = 'tap') {
     if (!options.haptics || Platform.OS === 'web') return;
     const run = kind === 'success' ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -250,6 +283,7 @@ export const audio = {
     hushTimer = undefined;
     if (duckTimer) clearInterval(duckTimer);
     duckTimer = undefined;
+    audio.endSting();
     releaseEffects();
     discard(musicPlayer); discard(ambPlayer);
     musicPlayer = ambPlayer = undefined;

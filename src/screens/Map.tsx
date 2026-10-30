@@ -4,7 +4,7 @@ import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { LinearGradient } from 'expo-linear-gradient';
 import { chapters, LEVELS_PER_CHAPTER } from '../game/chapters';
 import { levels } from '../game/levels';
-import { mapLayout, MapScroll, MapSection, REVEAL_POP, REVEAL_TRAVEL } from '../game/mapLayout';
+import { mapLayout, MapScroll, MapSection, REVEAL_POP, REVEAL_TRAVEL, VEIL_RAMP } from '../game/mapLayout';
 import { Progress, SHARDS_PER_WORLD, totalShards, unlockedLevel, worldShards } from '../game/progress';
 import { Seen } from '../services/storage';
 import { fitTitle, Gem, TitleArt } from '../ui/Art';
@@ -27,6 +27,28 @@ const LABELS_AFTER_FRAMES = 3;
 const LAST = levels.length;
 /** The furthest level the map has shown this session, so a fresh unlock can be played out when the map reopens. */
 let lastSeenNext: number | undefined;
+
+/** A world's dark tone (its panel colour, opaque), which its mists and veils are made of. */
+const tone = (chapter: number) => looks[chapter]!.ui.panel[1].slice(0, 7);
+/** An alpha as the two hex digits that follow a #rrggbb colour. */
+const alpha = (a: number) => Math.round(a * 255).toString(16).padStart(2, '0');
+/** A veil's eased ramp (smoothstep), so it neither starts nor lands on a visible edge. */
+const RAMP = [0, .25, .5, .75, 1].map(t => t * t * (3 - 2 * t));
+/** The first gate only shades the story card a little; there is no world before it to leave. */
+const FIRST_VEIL = { colors: ['#00000000', '#00000000', '#00000060', '#00000000'], locations: [0, .3, .7, 1] };
+/**
+ * A gate's veil: it eases in over the world being left, in that world's own tone, turns to the next world's tone while
+ * opaque (the 3D world swaps in there, unseen) and eases out over the new world. Its transparent stops keep their colour,
+ * because a gradient from transparent black passes through a muddy dark band.
+ */
+function gateVeil(chapter: number) {
+  if (chapter === 0) return FIRST_VEIL;
+  const from = tone(chapter - 1), to = tone(chapter), n = RAMP.length - 1;
+  return {
+    colors: [...RAMP.map(a => from + alpha(a)), ...RAMP.map((_, i) => to + alpha(RAMP[n - i]!))],
+    locations: [...RAMP.map((_, i) => (i / n) * VEIL_RAMP), ...RAMP.map((_, i) => 1 - VEIL_RAMP + (i / n) * VEIL_RAMP)],
+  };
+}
 
 /** Gentle bobbing; inactive loops render still so a long map does not run hundreds of animations. */
 function Loop({ children, duration, from = 0, to = -8, style, active = true }: { children: React.ReactNode; duration: number; from?: number; to?: number; style?: object; active?: boolean }) {
@@ -162,15 +184,23 @@ function Gate({ section, progress, width, next, hearts, seen, safeTop, active, o
   const shards = worldShards(progress, section.chapter);
   const cleared = clearedIn(progress, section.chapter);
   const forged = hearts.includes(section.chapter);
-  const veil = section.chapter === 0 ? ['#00000000', '#00000000', '#00000060', '#00000000'] : ['#00000000', ui.panel[1].slice(0, 7), ui.panel[1].slice(0, 7), '#00000000'];
+  const veil = gateVeil(section.chapter);
   const ch = section.chapter;
+  const cardW = Math.min(width - 40, 420);
+  // Cinzel capitals run about .68 em: the spacing closes up first, then the size, so the kicker never wraps on a narrow phone.
+  const kicker = `CHAPTER ${c.number} · ${c.world.toUpperCase()}`, perChar = (cardW - 34) / kicker.length;
+  const kickerSpacing = Math.max(1.5, Math.min(4, perChar - .68 * 11.5)), kickerSize = Math.min(11.5, (perChar - kickerSpacing) / .68);
   return <View style={{ position: 'absolute', top: section.gateTop, left: 0, width, height: section.gateH }} pointerEvents="box-none">
-    {/* The veil is fully opaque between 30% and 70% of the gate; the 3D world swaps in that band, unseen. */}
-    <LinearGradient pointerEvents="none" colors={veil as [string, string, string, string]} locations={[0, .3, .7, 1]} style={StyleSheet.absoluteFill} />
+    <LinearGradient pointerEvents="none" colors={veil.colors as [string, string, ...string[]]} locations={veil.locations as [number, number, ...number[]]}
+      style={StyleSheet.absoluteFill} />
     <View style={[s.gateCard, { top: ch === 0 ? safeTop + 92 : section.gateH * .5 - 200 }]} pointerEvents="box-none">
       <Loop duration={2200} to={-6} active={active}><Gem size={70} color={forged ? c.heartColor : locked ? 'gray' : look.crystal} /></Loop>
-      <View style={[s.kicker, { borderColor: `${ui.accent}55` }]}><GameText size={11.5} font="cinemaBold" strokeWidth={0} style={{ color: ui.accent, letterSpacing: 4 }}>{`CHAPTER ${c.number} · ${c.world.toUpperCase()}`}</GameText></View>
-      <TitleArt lines={[c.title.toUpperCase()]} width={Math.min(width - 40, 420)} size={fitTitle(c.title, Math.min(width - 40, 420), 36)} fill={ui.title} stroke={ui.titleStroke} font={fonts.cinemaBold} />
+      <View style={[s.kicker, { borderColor: `${ui.accent}55` }]}>
+        <GameText size={kickerSize} font="cinemaBold" strokeWidth={0} style={{ color: ui.accent, letterSpacing: kickerSpacing }}>{kicker}</GameText>
+      </View>
+      <View style={s.gateTitle}>
+        <TitleArt lines={[c.title.toUpperCase()]} width={cardW} size={fitTitle(c.title, cardW, 36)} fill={ui.title} stroke={ui.titleStroke} font={fonts.cinemaBold} />
+      </View>
       <GameText size={14} font="semi" strokeWidth={0} style={s.story}>{c.intro[0]}</GameText>
       <View style={[s.gateStats, { borderColor: `${ui.accent}66` }]} pointerEvents="none">
         {locked ? <View style={s.statRow}><GameIcon name="lock-closed" size={15} color={ui.accent} /><GameText size={12} font="bold" strokeWidth={0} style={s.statText}>
@@ -201,12 +231,12 @@ function Gate({ section, progress, width, next, hearts, seen, safeTop, active, o
  * it is still locked) and recedes with every unlock.
  */
 function Fog({ section, edge, width, until }: { section: MapSection; edge: Animated.Value; width: number; until: number }) {
-  const tint = looks[section.chapter]!.ui.panel[1].slice(0, 7);
+  const tint = tone(section.chapter);
   // Runs on into the next gate's opaque veil (or the map's end), so it never stops in a visible line.
   const bottom = until;
   return <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, width, top: 0, height: bottom, overflow: 'hidden' }}>
     <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: bottom + 600, transform: [{ translateY: edge }] }}>
-      <LinearGradient colors={['#00000000', `${tint}5c`, `${tint}a8`]} locations={[0, .45, 1]} style={{ height: 300 }} />
+      <LinearGradient colors={[`${tint}00`, `${tint}5c`, `${tint}a8`]} locations={[0, .45, 1]} style={{ height: 300 }} />
       <View style={{ flex: 1, backgroundColor: `${tint}a8` }} />
     </Animated.View>
   </Animated.View>;
@@ -277,6 +307,8 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only the opening position
   const initialOffset = useMemo(() => ({ x: 0, y: startY }), []);
   const shown = useRef(new Animated.Value(-startY)).current;
+  /** Where the header ends (measured), which the level labels fade out under. */
+  const [headerH, setHeaderH] = useState(safe.top + 80);
   // The labels wait for the islands under them: a first map visit spends its opening frames compiling and uploading them.
   const labelsIn = useRef(new Animated.Value(0)).current;
   const [islandsShown, setIslandsShown] = useState(false);
@@ -389,17 +421,20 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
       {next <= LAST && !UNLOCK_ALL && <Fog section={fogSection} edge={fogEdge} width={width} until={fogUntil(fogSection)} />}
       {layout.sections.filter(sc => !isOpen(sc.chapter * LEVELS_PER_CHAPTER + 1, next)).map(sc => <View key={sc.chapter} pointerEvents="none"
         style={{ position: 'absolute', left: 0, width, top: sc.levelsTop - 60, height: fogUntil(sc) - sc.levelsTop + 60 }}>
-        <LinearGradient colors={['#00000000', `${looks[sc.chapter]!.ui.panel[1].slice(0, 7)}a0`]} locations={[0, .12]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[`${tone(sc.chapter)}00`, `${tone(sc.chapter)}a0`]} locations={[0, .12]} style={StyleSheet.absoluteFill} />
       </View>)}
       {levels.map(l => {
         const n = layout.node(l.id);
         if (!nearView(n.y)) return null;
         const w = layout.islandWidth(l.id);
         const st = stateShown(l.id);
-        return <View key={l.id} pointerEvents="none" style={{ position: 'absolute', left: n.x - w / 2, top: n.y - (l.boss ? 28 : 24), width: w, alignItems: 'center' }}>
+        // Fades out as its top slides under the header, instead of running into the title; `shown` is minus the scroll.
+        const top = n.y - (l.boss ? 28 : 24);
+        const under = shown.interpolate({ inputRange: [headerH - 10 - top, headerH + 30 - top], outputRange: [0, 1], extrapolate: 'clamp' });
+        return <Animated.View key={l.id} pointerEvents="none" style={{ position: 'absolute', left: n.x - w / 2, top, width: w, alignItems: 'center', opacity: under }}>
           <Medal id={l.id} state={st} shards={progress[l.id]?.stars ?? 0} pressed={pressed === l.id} shake={shake?.id === l.id ? shake.n : 0}
             popKey={reveal && ((phase === 1 && l.id >= reveal.from && l.id < reveal.to) || (phase === 2 && l.id === reveal.to)) ? phase : 0} />
-        </View>;
+        </Animated.View>;
       })}
     </Animated.View>
     {/* Opens at the focused level (the first chapter's story card flashed at the top while the jump below caught up). */}
@@ -417,7 +452,7 @@ export function JourneyMap({ progress, focus, scroll, seen, hearts, onChapter, o
       </View>
     </ScrollView>
     <LinearGradient pointerEvents="none" colors={['#000000c8', '#00000066', '#00000000']} locations={[0, .6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: safe.top + 118 }} />
-    <View style={[s.header, { paddingTop: safe.top + 8 }]} pointerEvents="box-none">
+    <View style={[s.header, { paddingTop: safe.top + 8 }]} pointerEvents="box-none" onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
       <RoundButton icon="home" label="Home" size={46} onPress={onBack} sfx="whoosh" />
       <View style={s.headerMid} pointerEvents="none">
         <GameText size={19} font="cinemaBold" strokeWidth={0} style={s.headerTitle}>THE JOURNEY</GameText>
@@ -458,6 +493,7 @@ const s = StyleSheet.create({
   gateCard: { position: 'absolute', left: 18, right: 18, alignItems: 'center' },
   story: { color: '#eef2fb', marginTop: 4, paddingHorizontal: 12, ...shadow },
   kicker: { marginTop: 8, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 10, borderWidth: 1, backgroundColor: '#05081ab8' },
+  gateTitle: { marginTop: 10 },
   gateStats: { alignItems: 'center', gap: 7, marginTop: 14, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, borderWidth: 1, backgroundColor: '#05081ad0' },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statText: { color: '#fff' },

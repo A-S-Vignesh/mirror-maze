@@ -20,14 +20,17 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.SYSTEM_ALERT_WINDOW"
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.ACCESS_ADSERVICES_AD_ID",
+        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+        "android.permission.ACCESS_ADSERVICES_TOPICS"
       ],
       "adaptiveIcon": { "foregroundImage": "./assets/images/adaptive-foreground.png", "backgroundColor": "#140a33" }
     },
     "web": { "bundler": "metro", "name": "Mirror Maze - The Last Lightkeeper", "themeColor": "#05030f", "favicon": "./assets/images/icon.png" },
     "plugins": [
       ["react-native-google-mobile-ads", {
-        "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+        "androidAppId": "ca-app-pub-6916954637994304~6329620459",
         "iosAppId": "ca-app-pub-3940256099942544~1458002511",
         "delayAppMeasurementInit": true
       }],

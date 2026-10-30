@@ -674,4 +674,34 @@ write('type', render(.04, t => Math.sin(TAU * 1900 * t) * env(t, .0015, 160) * .
   mix(d, render(len, t => (Math.sin(TAU * 98 * t) + Math.sin(TAU * 147 * t) * .6 + Math.sin(TAU * 196.4 * t) * .25) * (.75 + .25 * Math.sin(t * 11)) * shape(t) * .3), 0, 1);
   write('grind', reverb(d, .3, 1.3), { peak: .7 });
 }
+{ // The YNOT Studio card's sting, composed to the card's timeline (src/screens/StudioIntro.tsx: keep these times in step)
+  const FLY = .9, DECODE_AT = 1.5, DECODE = 1.3, FLICKER = .07, WAVE_AT = 2.7, d = buffer(5.6);
+  // The pixels flying in: a soft rush of air that opens up as they gather.
+  mix(d, highpass(air(1.5, t => 500 + 1700 * Math.min(1, t / 1.1)), 300).map((v, i) => v * Math.sin(Math.PI * Math.min(1, i / SR / 1.5)) ** 2 * 3), .05, .35);
+  // Each letter's pixels reaching home (40% into their flight) as small glassy pips, then the letter settling on one note:
+  // Y, N, O and T rise C, E, G, D.
+  [72, 76, 79, 86].forEach((n, letter) => {
+    for (let k = 0; k < 7; k++) mix(d, cleanBell(midi(n + 12 + [0, 7, 12][k % 3]), .18, 30, .5), .15 + letter * .17 + rand() * .28 + FLY * .4, .07);
+    mix(d, marimba(midi(n), .7), .75 + letter * .17, .45);
+  });
+  // STUDIO decoding: a faint digital tick at each flicker of each letter, then a brighter pip as the letter settles.
+  for (let i = 0; i < 6; i++) {
+    const from = .01 + i * .04, lock = .38 + i * .12;
+    for (let t = from; t < lock - .001; t += FLICKER) {
+      const f = 1500 + rand() * 900;
+      mix(d, render(.03, u => Math.sin(TAU * f * u) * env(u, .001, 180)), DECODE_AT + t * DECODE, .05);
+    }
+    mix(d, cleanBell(midi(91 + [0, 2, 4, 7, 9, 12][i]), .35, 14, .5), DECODE_AT + lock * DECODE, .16);
+  }
+  // Fully revealed: a warm Cmaj9 bloom and a sparkle that ring through the card's rest, and the wave's rising glint.
+  const bloom = DECODE_AT + .98 * DECODE;
+  [72, 76, 79, 83, 86].forEach((n, i) => mix(d, cleanBell(midi(n), 2.75, 1.8), bloom + i * .025, .3));
+  [64, 67, 71].forEach(n => mix(d, pad([midi(n)], 2.2), bloom, 1.2));
+  mix(d, cleanSparkle(1.2, 2400, 10), bloom + .05, .35);
+  mix(d, glideTone(.7, 1400, 2600, swell), WAVE_AT, .12);
+  // The reverb's last whisper fades out instead of stopping at the end of the file.
+  const sting = reverb(d, .35), tail = Math.floor(.4 * SR);
+  for (let i = 0; i < tail; i++) sting[sting.length - 1 - i] *= i / tail;
+  write('studio', sting, { peak: .8 });
+}
 console.log(`Generated ${fs.readdirSync(out).length} MP3 files, ${(total / 1024).toFixed(0)} KB total`);

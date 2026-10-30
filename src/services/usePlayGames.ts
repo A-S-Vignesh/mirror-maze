@@ -9,15 +9,21 @@ import type { useSave } from './useSave';
 export type PlayGamesStatus = 'unavailable' | 'signedOut' | 'signedIn';
 /** Development builds start fully opened (completedDevelopmentSave), so they keep a cloud save of their own. */
 const SAVE_NAME = __DEV__ ? 'mirror-maze-dev' : 'mirror-maze';
-const games = PlayGames?.isConfigured() ? PlayGames : null;
+const configured = PlayGames?.isConfigured() ? PlayGames : null;
 
 /**
  * Google Play Games: sign-in (automatic for returning players), achievements, the Crystal Shards leaderboard and the
  * cloud save. Whenever the journey changes, it is merged with the cloud save both ways, so playing on a new phone (or
  * after reinstalling) picks up where the player left off, and nothing earned on either side is lost.
+ *
+ * `allowed` comes from the age screen: Play Games starts only once it says so (never for children, never before it is
+ * answered), because the SDK no longer starts with the app (app.plugin.js).
  */
-export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () => void) {
-  const [status, setStatus] = useState<PlayGamesStatus>(games ? 'signedOut' : 'unavailable');
+export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () => void, allowed: boolean) {
+  const games = allowed ? configured : null;
+  const [status, setStatus] = useState<PlayGamesStatus>('unavailable');
+  /** Play Games' start-up, which every sign-in waits for. */
+  const started = useRef<Promise<void>>(Promise.resolve());
   const latest = useRef(save.data);
   latest.current = save.data;
   const restored = useRef(onRestored);
@@ -30,8 +36,12 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
   const { adopt, loaded } = save;
 
   useEffect(() => {
-    games?.isAuthenticated().then(ok => setStatus(ok ? 'signedIn' : 'signedOut'), cause => console.warn('Play Games sign-in check failed', cause));
-  }, []);
+    if (!games) return;
+    setStatus('signedOut');
+    started.current = games.initialize();
+    started.current.then(() => games.isAuthenticated())
+      .then(ok => setStatus(ok ? 'signedIn' : 'signedOut'), cause => console.warn('Play Games sign-in check failed', cause));
+  }, [games]);
 
   const report = useCallback((journey: SaveData) => {
     if (!games) return;
@@ -46,7 +56,7 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
       scored.current = score;
       games.submitScore(SHARDS_LEADERBOARD, score).catch(cause => { scored.current = -1; console.warn('Score submission failed', cause); });
     }
-  }, []);
+  }, [games]);
 
   const sync = useCallback(() => {
     queue.current = queue.current.then(async () => {
@@ -78,7 +88,7 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
       }
       if (!replace.current) report(journey);
     }).catch(cause => console.warn('Play Games sync failed', cause));
-  }, [adopt, report]);
+  }, [games, adopt, report]);
 
   // Each change to the journey (a cleared level, a story moment) reaches the cloud a moment later.
   useEffect(() => {
@@ -90,6 +100,7 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
   const signIn = useCallback(async () => {
     if (!games) return false;
     try {
+      await started.current;
       const ok = await games.signIn();
       setStatus(ok ? 'signedIn' : 'signedOut');
       return ok;
@@ -97,7 +108,7 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
       console.warn('Play Games sign-in failed', cause);
       return false;
     }
-  }, []);
+  }, [games]);
   /** Opens Google Play's achievements or leaderboard screen, signing in first if needed. False if that failed. */
   const open = useCallback(async (screen: 'achievements' | 'leaderboard') => {
     if (!games || (status !== 'signedIn' && !(await signIn()))) return false;
@@ -109,7 +120,7 @@ export function usePlayGames(save: ReturnType<typeof useSave>, onRestored: () =>
       console.warn('Play Games screen failed', screen, cause);
       return false;
     }
-  }, [status, signIn]);
+  }, [games, status, signIn]);
   /** The local journey was reset: carry the reset to the cloud save too. */
   const resetCloud = useCallback(() => { replace.current = true; reported.current.clear(); }, []);
 

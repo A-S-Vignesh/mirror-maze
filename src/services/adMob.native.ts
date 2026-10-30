@@ -2,23 +2,32 @@ import { Platform } from 'react-native';
 import mobileAds, { AdEventType, AdsConsent, AdsConsentPrivacyOptionsRequirementStatus, InterstitialAd, MaxAdContentRating, TestIds } from 'react-native-google-mobile-ads';
 import { AdProvider, ads } from './ads';
 import { INTERSTITIAL_UNIT } from '../config/googlePlay';
+import { adSettings, AgeGroup } from '../game/age';
 
 let starting = false, started = false;
 
 /**
- * Starts Google AdMob and registers the interstitial with the ad slot: asks for consent where the law requires it
- * (Google's consent form, EEA/UK), then loads the first ad so it is ready by the third level. Safe to call repeatedly;
- * if it could not start (offline, no consent), a later call tries again.
+ * Starts Google AdMob and registers the interstitial with the ad slot, set up for the player's age group (see
+ * adSettings): asks adults for consent where the law requires it (Google's consent form, EEA/UK), then loads the first
+ * ad so it is ready by the third level. Safe to call repeatedly; if it could not start (offline, no consent), a later
+ * call tries again.
  */
-export function startAds() {
+export function startAds(group: AgeGroup) {
   if (starting || started) return;
   starting = true;
+  const settings = adSettings(group);
   void (async () => {
     try {
       // A stale consent form must not block ads that were already consented to, so a failure here is only logged.
-      await AdsConsent.gatherConsent().catch(cause => console.warn('Ad consent could not be updated', cause));
+      await AdsConsent.gatherConsent({ tagForUnderAgeOfConsent: settings.consentFormUnderAge })
+        .catch(cause => console.warn('Ad consent could not be updated', cause));
       if (!(await AdsConsent.getConsentInfo()).canRequestAds) return;
-      await mobileAds().setRequestConfiguration({ maxAdContentRating: MaxAdContentRating.PG });
+      // Set before the SDK starts, so no ad request ever goes out without it.
+      await mobileAds().setRequestConfiguration({
+        maxAdContentRating: settings.maxRating === 'G' ? MaxAdContentRating.G : MaxAdContentRating.PG,
+        ...(settings.childDirected && { tagForChildDirectedTreatment: true }),
+        ...(settings.underAgeOfConsent && { tagForUnderAgeOfConsent: true }),
+      });
       await mobileAds().initialize();
       ads.setProvider(interstitials());
       started = true;

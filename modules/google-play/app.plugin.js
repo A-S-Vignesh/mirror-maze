@@ -8,7 +8,9 @@ const INIT_PROVIDER = 'com.google.android.gms.games.provider.PlayGamesInitProvid
  * Google Play Games Services needs the game's Play Console project id (Play Console > Play Games Services > Setup and
  * management > Configuration, the number under the game's name). Pass it as `gamesAppId`.
  *
- * Without an id, the SDK's start-up provider is removed so it never runs, and the game hides Play Games features.
+ * The SDK's start-up provider is always removed: it would start Play Games (and its automatic sign-in) with the app,
+ * before the age screen. The game starts it itself (PlayGamesModule.initialize) for players the age screen allows,
+ * as Google Play's Families policy requires. Without an id the game hides Play Games features entirely.
  */
 module.exports = function withGooglePlay(config, { gamesAppId = '' } = {}) {
   const id = String(gamesAppId).trim();
@@ -24,14 +26,11 @@ module.exports = function withGooglePlay(config, { gamesAppId = '' } = {}) {
   return withAndroidManifest(config, c => {
     const manifest = c.modResults;
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
+    if (id) AndroidConfig.Manifest.addMetaDataItemToMainApplication(app, APP_ID, `@string/${PROJECT_ID}`);
+    else AndroidConfig.Manifest.removeMetaDataItemFromMainApplication(app, APP_ID);
+    manifest.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     app.provider = (app.provider ?? []).filter(p => p.$['android:name'] !== INIT_PROVIDER);
-    if (id) {
-      AndroidConfig.Manifest.addMetaDataItemToMainApplication(app, APP_ID, `@string/${PROJECT_ID}`);
-    } else {
-      AndroidConfig.Manifest.removeMetaDataItemFromMainApplication(app, APP_ID);
-      manifest.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
-      app.provider.push({ $: { 'android:name': INIT_PROVIDER, 'android:authorities': '${applicationId}.playgamesinitprovider', 'tools:node': 'remove' } });
-    }
+    app.provider.push({ $: { 'android:name': INIT_PROVIDER, 'android:authorities': '${applicationId}.playgamesinitprovider', 'tools:node': 'remove' } });
     return c;
   });
 };

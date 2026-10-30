@@ -9,7 +9,7 @@ import type { AchievementKey } from '../game/achievements';
  */
 
 /** AdMob interstitial ad unit ids ("ca-app-pub-…/…"). Development builds always use Google's test unit. */
-export const INTERSTITIAL_UNIT: { android: string; ios: string } = { android: '', ios: '' };
+export const INTERSTITIAL_UNIT: { android: string; ios: string } = { android: 'ca-app-pub-6916954637994304/6962764010', ios: '' };
 
 /** The Remove Ads in-app product (Play Console > Monetize > In-app products). A one-time, non-consumable purchase. */
 export const REMOVE_ADS_PRODUCT = 'remove_ads';
@@ -41,4 +41,4 @@ export const SHARDS_LEADERBOARD = '';
  * The privacy policy ("https://…"): the same address as in Play Console > App content > Privacy policy. Google Play
  * requires a link inside the app too; Settings shows one under the version line once this is filled in.
  */
-export const PRIVACY_POLICY_URL: string = '';
+export const PRIVACY_POLICY_URL: string = 'https://ynotstudio.netlify.app/games/mirror-maze/privacy/';

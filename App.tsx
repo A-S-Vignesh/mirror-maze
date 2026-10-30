@@ -13,6 +13,8 @@ import { PERF_HUD } from './src/world/perf';
 import { GameText } from './src/ui/GameText';
 import { ChapterUI, Panel, ToyButton } from './src/ui/Toy';
 import { Splash } from './src/screens/Splash';
+import { StudioIntro } from './src/screens/StudioIntro';
+import { AgeGate } from './src/screens/AgeGate';
 import { Prologue } from './src/screens/Prologue';
 import { Home, HomeExtra } from './src/screens/Home';
 import { JourneyMap, StoryKind } from './src/screens/Map';
@@ -27,6 +29,8 @@ import { ads } from './src/services/ads';
 import { adPrivacy, startAds } from './src/services/adMob';
 import { useRemoveAds } from './src/services/removeAds';
 import { usePlayGames } from './src/services/usePlayGames';
+import { useAge } from './src/services/useAge';
+import { playGamesAllowed } from './src/game/age';
 import { AdFree, purchaseNotice } from './src/ui/AdFree';
 import { voice } from './src/services/voice';
 import { heartsEarned, recordResult, SHARDS_PER_WORLD, totalShards, unlockedLevel, worldShards } from './src/game/progress';
@@ -37,12 +41,12 @@ import type { HudStatus } from './src/screens/Gameplay';
 import { isOpen } from './src/game/testing';
 import { PlayState, Trace } from './src/game/types';
 
-type Screen = 'splash' | 'prologue' | 'home' | 'map' | 'intro' | 'game' | 'complete' | 'fail' | 'outro' | 'forge' | 'ending';
+type Screen = 'splash' | 'age' | 'prologue' | 'home' | 'map' | 'intro' | 'game' | 'complete' | 'fail' | 'outro' | 'forge' | 'ending';
 const worldMode: Record<Screen, WorldMode> = {
-  splash: 'splash', prologue: 'prologue', home: 'menu', map: 'map', intro: 'intro', game: 'game',
+  splash: 'splash', age: 'splash', prologue: 'prologue', home: 'menu', map: 'map', intro: 'intro', game: 'game',
   complete: 'complete', fail: 'fail', outro: 'outro', forge: 'forge', ending: 'ending',
 };
-const cinematic: Screen[] = ['splash', 'prologue', 'intro'];
+const cinematic: Screen[] = ['splash', 'age', 'prologue', 'intro'];
 interface Win { moves: number; stars: number; before: number; after: number }
 interface Snapshot { play: PlayState; moves: number }
 
@@ -56,8 +60,12 @@ function GameApp() {
   });
   const safe = useSafeAreaInsets();
   const save = useSave();
+  /** Year of birth from the first-launch age screen: until it is answered, no ad loads and Play Games does not start. */
+  const age = useAge();
   const removeAds = useRemoveAds();
   const [screen, setScreen] = useState<Screen>('splash');
+  /** The YNOT Studio card over the first seconds of a launch: the splash draws beneath it, and finishes only once it fades. */
+  const [studio, setStudio] = useState<'playing' | 'leaving' | 'done'>('playing');
   const [modal, setModal] = useState<'settings' | 'pause'>();
   const [active, setActive] = useState(AppState.currentState === 'active');
   const [privacyForm, setPrivacyForm] = useState(false);
@@ -73,7 +81,8 @@ function GameApp() {
   const [mapFocus, setMapFocus] = useState(1);
   const [forging, setForging] = useState<number>();
   const [notice, setNotice] = useState<string>();
-  const playGames = usePlayGames(save, useCallback(() => setNotice('Your journey was restored from your Google Play Games cloud save.'), []));
+  const playGames = usePlayGames(save, useCallback(() => setNotice('Your journey was restored from your Google Play Games cloud save.'), []),
+    age.group !== undefined && playGamesAllowed(age.group));
   const [curtain, setCurtain] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [view, setView] = useState<'tilt' | 'top'>('tilt');
@@ -157,10 +166,12 @@ function GameApp() {
 
   useEffect(() => { audio.init(); audio.onFailure(setNotice); return () => audio.dispose(); }, []);
   useEffect(() => { ads.setPauseHooks({ pause: () => setActive(false), resume: () => setActive(AppState.currentState === 'active') }); return () => ads.setPauseHooks(undefined); }, []);
-  // Ads start only once Remove Ads is known not to be owned; if they could not start (offline), the next return retries.
-  useEffect(() => { if (active && removeAds.loaded && !removeAds.adFree) startAds(); }, [active, removeAds.loaded, removeAds.adFree]);
+  // Ads start only once the age screen is answered (it sets their settings) and Remove Ads is known not to be owned;
+  // if they could not start (offline), the next return retries.
+  useEffect(() => { if (active && age.group && removeAds.loaded && !removeAds.adFree) startAds(age.group); }, [active, age.group, removeAds.loaded, removeAds.adFree]);
   useEffect(() => { if (modal === 'settings') void adPrivacy.required().then(setPrivacyForm); }, [modal]);
-  useEffect(() => { audio.configure(save.data.settings, active && save.loaded); }, [save.data.settings, active, save.loaded]);
+  // The world's music and ambience start once the studio card leaves (its own sting plays apart from them).
+  useEffect(() => { audio.configure(save.data.settings, active && save.loaded && studio !== 'playing'); }, [save.data.settings, active, save.loaded, studio]);
   useEffect(() => { voice.configure(save.data.settings.voice && active); }, [save.data.settings.voice, active]);
   // Narration belongs to cutscenes only; leaving one silences the narrator.
   useEffect(() => { if (!['prologue', 'intro', 'outro', 'forge', 'ending'].includes(screen)) voice.stop(); }, [screen]);
@@ -205,7 +216,8 @@ function GameApp() {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (modal) { setModal(undefined); return true; }
       if (screen === 'game') { setModal('pause'); return true; }
-      if (screen !== 'home' && screen !== 'splash') { go('home'); return true; }
+      // The age screen cannot be skipped: Back there leaves the app, as on Home.
+      if (screen !== 'home' && screen !== 'splash' && screen !== 'age') { go('home'); return true; }
       return false;
     });
     return () => sub.remove();
@@ -317,13 +329,19 @@ function GameApp() {
     setDevourOver(false);
     audio.stop('abyss'); audio.stop('swallow'); audio.setHush(1);
   };
+  /**
+   * Undo costs a move, like a hint: the board steps back, the move taken back stays spent and one more is paid. It is
+   * off with a single move left, since paying that would strand the level.
+   */
   const undo = () => {
     if (screen !== 'game' || win || turning || !history.length || lock.current > Date.now() + 1000) return;
+    if (level.maxMoves - moves <= 1) { audio.play('bonk'); audio.haptic('error'); return; }
     const last = history[history.length - 1]!;
     cancelHint();
     setPreviewId(undefined);
+    setHint(undefined);
     setHistory(h => h.slice(0, -1));
-    setPlay(last.play); setMoves(last.moves);
+    setPlay(last.play); setMoves(moves + 1);
     audio.play('rotate', .6); audio.haptic();
   };
   /** After the Devourer swallows the light: step back to the board as it was before that move. */
@@ -339,10 +357,15 @@ function GameApp() {
     audio.play('rotate', .6); audio.haptic();
     go('game');
   };
+  /**
+   * A hint costs one move, taken at once with no prompt, and only when the hinted solution still fits in the moves left
+   * after paying (otherwise it bonks and costs nothing). Every saved step is charged too, so the Devourer's rewind, which
+   * restores a step's count, keeps the cost.
+   */
   const showHint = () => {
     if (screen !== 'game' || win || turning) return;
-    // Already searching this exact board; let that search finish.
-    if (hintJob.current?.play === play) return;
+    // Already searching this exact board, or its hint is on show (paid for, or one of the first levels' free ones).
+    if (hintJob.current?.play === play || hint) return;
     cancelHint();
     // Late-game boards can take a noticeable moment to search on a phone; slicing keeps the scene animating meanwhile.
     const job = { play, cancel: () => undefined as void };
@@ -350,7 +373,10 @@ function GameApp() {
     job.cancel = solveSliced(level, play, path => {
       if (hintJob.current !== job) return;
       hintJob.current = undefined;
-      if (path?.length) setHint(path[0]);
+      if (!path?.length || moves + 1 + path.length > level.maxMoves) { audio.play('bonk'); audio.haptic('error'); return; }
+      setMoves(m => m + 1);
+      setHistory(h => h.map(step => ({ ...step, moves: step.moves + 1 })));
+      setHint(path[0]);
     });
   };
   const newHeart = () => worldShards(progress, level.chapter) === SHARDS_PER_WORLD && !seen.hearts.includes(level.chapter);
@@ -419,11 +445,13 @@ function GameApp() {
   const devourDoneRef = useRef(devourDone);
   devourDoneRef.current = devourDone;
   const onDevourDone = useCallback(() => devourDoneRef.current(), []);
-  const ready = (fontsLoaded || !!fontError) && save.loaded;
+  const ready = (fontsLoaded || !!fontError) && save.loaded && age.loaded;
+  const afterAge = () => go(seen.prologue ? 'home' : 'prologue');
   const dusk = screen === 'fail' && level.chapter === 2 ? 1 : screen === 'game' && level.chapter === 2 && level.maxMoves ? (moves / level.maxMoves) * .8 : 0;
 
   const content = <>
-    {screen === 'splash' && <Splash ready={ready} onDone={() => go(seen.prologue ? 'home' : 'prologue')} />}
+    {screen === 'splash' && <Splash ready={ready && studio !== 'playing'} onDone={() => (age.group ? afterAge() : go('age'))} />}
+    {screen === 'age' && <AgeGate onDone={year => { age.answer(year); afterAge(); }} />}
     {screen === 'prologue' && <Prologue onDone={replay ? endReplay : () => { save.markSeen('prologue'); if (next === 1) start(1); else go('home'); }} />}
     {screen === 'home' && <Home total={total} next={next} chapter={homeChapter} hearts={hearts}
       onPlay={() => (next > levels.length ? openMap(levels.length) : start(next))} onMap={() => openMap()} onSettings={() => setModal('settings')} extras={homeExtras}
@@ -434,7 +462,7 @@ function GameApp() {
       onDone={replay ? endReplay : () => { save.markSeen('intros', level.chapter); go('game'); }} />}
     {screen === 'game' && <Gameplay key={`${levelId}:${attempt}`} level={level} moves={moves} lit={shownTrace.activated.length} litIds={shownTrace.activated} won={won}
       loading={readyBoard !== `${levelId}:${attempt}`} view={view} onView={() => setView(v => (v === 'tilt' ? 'top' : 'tilt'))}
-      celebrate={celebrate} canUndo={history.length > 0 && !play.absorbed} onPause={() => setModal('pause')} onRestart={() => { audio.play('whoosh'); begin(levelId); }}
+      celebrate={celebrate} canUndo={history.length > 0 && !play.absorbed && level.maxMoves - moves > 1} onPause={() => setModal('pause')} onRestart={() => { audio.play('whoosh'); begin(levelId); }}
       onUndo={undo} onHint={showHint} onRotate={rotate} status={status} devoured={!!shownTrace.absorbed} />}
     {screen === 'complete' && win && <Complete level={level} {...win} best={progress[levelId]?.moves ?? win.moves} onNext={continueAfterWin}
       onReplay={() => { begin(levelId); go('game'); }} onHome={() => go('home')} onMap={() => openMap(levelId)} />}
@@ -466,6 +494,7 @@ function GameApp() {
         <ToyButton title={save.error ? 'RETRY SAVE' : 'OK'} height={40} fontSize={15} style={{ marginTop: 8 }}
           onPress={() => (save.error ? save.retrySave() : setNotice(undefined))} />
       </Panel></View>}
+      {studio !== 'done' && <StudioIntro sound={save.loaded && active && save.data.settings.sound} onReveal={() => setStudio('leaving')} onDone={() => setStudio('done')} />}
       <Curtain visible={curtain} duration={280} />
       {PERF_HUD && <PerfOverlay />}
       {modal === 'settings' && <SettingsModal chapter={worldChapter} settings={save.data.settings} onChange={save.setting} onClose={() => setModal(undefined)}

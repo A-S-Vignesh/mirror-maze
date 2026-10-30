@@ -4,6 +4,8 @@ import { NativeModule, requireOptionalNativeModule } from 'expo';
 declare class PlayGamesModule extends NativeModule {
   /** Whether the game's Play Console project id was built in (app.json, google-play plugin). Nothing else may be called without it. */
   isConfigured(): boolean;
+  /** Starts the SDK. It does not start with the app (app.plugin.js), so this runs first, once the age screen allows it. */
+  initialize(): Promise<void>;
   isAuthenticated(): Promise<boolean>;
   signIn(): Promise<boolean>;
   unlock(id: string): Promise<void>;

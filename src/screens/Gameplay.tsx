@@ -173,7 +173,7 @@ export function Gameplay({ level, moves, lit, litIds, won, loading, view, onView
           <GameText size={15} font="cinemaBold" strokeWidth={0} style={s.plaqueText}>{`${worldTags[level.chapter]} · ${level.index}`}</GameText>
           {level.boss && <GameIcon name="flame" size={16} color={ui.accent} />}
         </View>
-        <RoundButton icon="bulb" label="Hint" size={46} onPress={onHint} />
+        <RoundButton icon="bulb" label="Hint, costs one move" size={46} onPress={onHint} />
       </View>
       <View style={[s.bar, { borderColor: `${ui.accent}55` }]} pointerEvents="none">
         <View style={s.cell} accessibilityLabel={`${moves} ${moves === 1 ? 'move' : 'moves'}${limit ? ` of ${limit}` : ''}`}>
@@ -217,7 +217,7 @@ export function Gameplay({ level, moves, lit, litIds, won, loading, view, onView
         <RoundButton icon={view === 'tilt' ? 'scan' : 'cube'} label={view === 'tilt' ? 'Top-down view' : 'Tilted view'} size={42} onPress={onView} />
       </View>
       <View style={{ opacity: canUndo && !won ? 1 : .35 }} pointerEvents={canUndo && !won ? 'auto' : 'none'}>
-        <RoundButton icon="arrow-undo" label="Undo move" size={50} onPress={onUndo} />
+        <RoundButton icon="arrow-undo" label="Undo move, costs one move" size={50} onPress={onUndo} />
       </View>
     </View>
     <View style={s.a11y} pointerEvents="none">

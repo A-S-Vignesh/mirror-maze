@@ -15,7 +15,9 @@ How to build, sign and check a Mirror Maze release for Google Play. The last aud
    keytool -genkeypair -v -keystore D:\keys\mirror-maze-upload.keystore -alias upload -keyalg RSA -keysize 4096 -validity 10000
    ```
 
-3. **Tell Gradle where the key is**, in `%USERPROFILE%\.gradle\gradle.properties` (not the project's):
+3. **Tell Gradle where the key is**, in the `gradle.properties` of your Gradle user home (not the project's): that is
+   `%GRADLE_USER_HOME%` when it is set (on the main dev machine, `D:\gradle-home`), otherwise `%USERPROFILE%\.gradle`.
+   A file in the wrong folder is silently ignored and the bundle comes out debug-signed; the preflight catches that.
 
    ```properties
    MM_UPLOAD_STORE_FILE=D:/keys/mirror-maze-upload.keystore

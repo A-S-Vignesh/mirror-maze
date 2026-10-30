@@ -3,6 +3,7 @@ package expo.modules.googleplay
 import android.app.Activity
 import android.content.pm.PackageManager
 import com.google.android.gms.games.PlayGames
+import com.google.android.gms.games.PlayGamesSdk
 import com.google.android.gms.games.SnapshotsClient
 import com.google.android.gms.games.snapshot.Snapshot
 import com.google.android.gms.games.snapshot.SnapshotMetadataChange
@@ -19,12 +20,14 @@ private const val RC_PLAY_GAMES_UI = 9004
 /**
  * Google Play Games Services v2: sign-in, achievements, a leaderboard and one cloud save (Saved Games).
  *
- * The SDK only starts when the game's Play Console project id is in the manifest (see app.plugin.js). Without it
- * `isConfigured` is false and the game never calls anything else here.
+ * The SDK never starts with the app (app.plugin.js removes its start-up provider): the game calls `initialize` once its
+ * age screen allows Play Games, so children's devices never sign in. Without the game's Play Console project id in
+ * the manifest `isConfigured` is false and the game never calls anything else here.
  */
 class PlayGamesModule : Module() {
   /** The cloud save opened by openSave, held until commitSave or discardSave closes it. */
   private var open: Snapshot? = null
+  private var initialized = false
 
   private val activity: Activity
     get() = appContext.currentActivity ?: throw Exceptions.MissingActivity()
@@ -33,6 +36,13 @@ class PlayGamesModule : Module() {
     Name("PlayGames")
 
     Function("isConfigured") { configured() }
+
+    AsyncFunction("initialize") {
+      if (!initialized) {
+        PlayGamesSdk.initialize(appContext.reactContext ?: throw Exceptions.ReactContextLost())
+        initialized = true
+      }
+    }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("isAuthenticated") { promise: Promise ->
       PlayGames.getGamesSignInClient(activity).isAuthenticated().settle(promise) { it.isAuthenticated }

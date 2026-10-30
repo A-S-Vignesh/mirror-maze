@@ -11,7 +11,7 @@ import { GameIcon, IconName, RoundButton, ShardPill, ToyButton, useUI } from '..
 import { AdFree, AdFreeBadge, AdFreeOrb } from '../ui/AdFree';
 import { UNLOCK_ALL } from '../game/testing';
 
-/** A small orb under the main buttons (Google Play Games); shown only when it can work on this device. */
+/** A small orb beside Settings in the top bar (Google Play Games); shown only when it can work on this device. */
 export interface HomeExtra { icon: IconName; caption: string; label: string; onPress: () => void }
 
 export function Home({ total, next, chapter, hearts, onPlay, onMap, onSettings, extras, adFree, onAdFree }: {
@@ -29,7 +29,10 @@ export function Home({ total, next, chapter, hearts, onPlay, onMap, onSettings, 
     <LinearGradient pointerEvents="none" colors={['#000000a8', '#00000000']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: height * .36 }} />
     <LinearGradient pointerEvents="none" colors={['#00000000', '#000000c0']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: height * .38 }} />
     <View style={[s.top, { paddingTop: safe.top + 8 }]} pointerEvents="box-none">
-      <RoundButton icon="settings-sharp" label="Settings" size={46} onPress={onSettings} />
+      <View style={s.left} pointerEvents="box-none">
+        <RoundButton icon="settings-sharp" label="Settings" size={46} onPress={onSettings} />
+        {extras.map(x => <RoundButton key={x.caption} icon={x.icon} label={x.label} size={46} onPress={x.onPress} />)}
+      </View>
       <View style={s.middle} pointerEvents="box-none">
         {/* On a narrow phone the label wraps after "TEST BUILD ·" (the other spaces don't break). */}
         {UNLOCK_ALL && <View style={s.testBadge} pointerEvents="none" accessibilityLabel="Test build, every level is open">
@@ -61,21 +64,18 @@ export function Home({ total, next, chapter, hearts, onPlay, onMap, onSettings, 
       </Pulse>
       {!finished && <ToyButton title="JOURNEY MAP" icon="map" tint="secondary" height={46} fontSize={16} onPress={onMap} style={{ width: Math.min(width * .56, 250), marginTop: 12 }}
         label="Journey map" sfx="whoosh" />}
-      {extras.length > 0 && <View style={s.extras} pointerEvents="box-none">
-        {extras.map(x => <RoundButton key={x.caption} icon={x.icon} label={x.label} caption={x.caption} size={44} onPress={x.onPress} />)}
-      </View>}
     </View>
   </View>;
 }
 
 const s = StyleSheet.create({
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14 },
+  left: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   middle: { flexShrink: 1, alignItems: 'center', gap: 6, marginHorizontal: 8 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   testBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, flexShrink: 1,
     backgroundColor: '#5a3a08d8', borderWidth: 1, borderColor: '#ffd36a' },
   bottom: { alignItems: 'center', paddingHorizontal: 20 },
   hearts: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 12, backgroundColor: '#05081a99', marginBottom: 10 },
-  extras: { flexDirection: 'row', gap: 34, marginTop: 14 },
   chapter: { color: '#f0f3fb', marginBottom: 14, textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
 });

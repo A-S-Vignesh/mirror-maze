@@ -29,6 +29,13 @@ export const MAP_STEP = 214;
 export const MAP_PAD = 130;
 /** How far down the first chapter's story card reaches, below the safe area. */
 export const FIRST_CARD_BOTTOM = 560;
+/** Gates after the first, in screen heights: long enough for the veil to ease in and out over more than half a screen. */
+export const GATE_SCREENS = 2.5;
+/**
+ * How much of a gate its veil spends easing in, and again easing out. In between it is opaque for half the gate, taller
+ * than the screen, so the world swap at the gate's middle never shows at the screen's edges, even mid-fling.
+ */
+export const VEIL_RAMP = .25;
 
 export interface MapSection { chapter: number; gateTop: number; gateH: number; levelsTop: number; levelsH: number }
 
@@ -64,7 +71,7 @@ export function mapLayout(width: number, height: number): MapLayout {
   for (let c = 0; c < chapters.length; c++) {
     // The first gate is tall enough that its story card (which ends about FIRST_CARD_BOTTOM down) has scrolled fully
     // off screen when level 1 is in focus, so it never shows under the header.
-    const gateH = c === 0 ? Math.round(FIRST_CARD_BOTTOM - MAP_PAD + height * .55 + 40) : Math.round(height * 1.75);
+    const gateH = c === 0 ? Math.round(FIRST_CARD_BOTTOM - MAP_PAD + height * .55 + 40) : Math.round(height * GATE_SCREENS);
     const levelsH = (LEVELS_PER_CHAPTER - 1) * MAP_STEP + MAP_PAD * 2;
     sections.push({ chapter: c, gateTop: y, gateH, levelsTop: y + gateH, levelsH });
     y += gateH + levelsH;

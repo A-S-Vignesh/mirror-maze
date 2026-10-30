@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chapters, LEVELS_PER_CHAPTER } from './chapters';
 import { levels } from './levels';
-import { FIRST_CARD_BOTTOM, islandWidthFor, mapLayout } from './mapLayout';
+import { FIRST_CARD_BOTTOM, islandWidthFor, mapLayout, VEIL_RAMP } from './mapLayout';
 import { islandParts, islandsReady, ISLAND_VARIANTS, prepareIslands } from '../world/map/islands';
 
 for (const [width, height] of [[360, 740], [412, 915], [430, 932], [768, 1024]] as const) {
@@ -32,6 +32,8 @@ for (const [width, height] of [[360, 740], [412, 915], [430, 932], [768, 1024]] 
       const swap = sec.gateTop + sec.gateH / 2;
       assert.ok(layout.node(c * LEVELS_PER_CHAPTER).y + 120 < swap - height / 2 || c === 0, `last island before gate ${c + 1} is off screen at the swap`);
       assert.ok(layout.node(c * LEVELS_PER_CHAPTER + 1).y - 120 > swap + height / 2, `first island after gate ${c + 1} is off screen at the swap`);
+      // The veil's opaque band covers the whole screen at the swap, with a fifth of a screen to spare for a scroll in flight.
+      assert.ok((1 - 2 * VEIL_RAMP) * sec.gateH >= height * 1.2, `gate ${c + 1}'s opaque veil covers the screen at the swap`);
     }
   });
 }

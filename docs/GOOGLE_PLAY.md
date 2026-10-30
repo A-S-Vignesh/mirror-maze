@@ -20,6 +20,25 @@ All IDs live in two places:
 
 ## How it behaves in the game
 
+**Age screen (Google Play Families policy).** The target audience includes children, so the first launch asks for a
+year of birth on a neutral screen: no year is chosen in advance, and nothing says what an answer unlocks. Until it is
+answered, no ad loads and Play Games does not start. The year is stored on the phone only (its own key, outside the
+journey and the cloud save, so Settings > RESET keeps it). A year on a boundary counts as the younger age
+(`src/game/age.ts`).
+
+| Age | Ads | Play Games |
+| --- | --- | --- |
+| Under 13 | Child-directed requests: no advertising ID, no personalised ads or remarketing, rated G | Off: its sign-in uses OAuth, which is not approved for child-directed services |
+| 13 to 17 | Under the age of consent: no advertising ID, not personalised, rated G | On |
+| 18 and over | Rated PG; personalised only with consent where the law requires it (EEA/UK/CH) | On |
+
+Play Games no longer starts with the app: `app.plugin.js` always removes its start-up provider, and the game calls
+`PlayGames.initialize()` after the age check. The AdMob SDK's Android Privacy Sandbox permissions
+(`ACCESS_ADSERVICES_AD_ID`, `_ATTRIBUTION`, `_TOPICS`) are blocked in `app.json`, so Topics (interest-based) and
+Attribution Reporting are never used: Google does not document that the child-directed tag turns Topics off, and ads
+for children must not be interest-based. The privacy policy (`PRIVACY_POLICY_URL`) describes exactly this, so
+change both together.
+
 **Ads.** One interstitial after every third completed level, shown when the player taps NEXT LEVEL / CONTINUE (a natural
 break), never during play or a cutscene. The count restarts only when an ad really played, so with no ad loaded (offline,
 no fill) the next Continue tries again. In the EEA/UK, Google's consent form appears at launch; Settings > AD PRIVACY

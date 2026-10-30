@@ -17,7 +17,8 @@ const SAMPLE_ADMOB = 'ca-app-pub-3940256099942544'; // Google's sample publisher
 const EXPECTED_PERMISSIONS = new Set([
   'android.permission.INTERNET', 'android.permission.VIBRATE', 'android.permission.WAKE_LOCK', 'android.permission.ACCESS_NETWORK_STATE',
   'android.permission.MODIFY_AUDIO_SETTINGS', 'com.android.vending.BILLING', 'com.google.android.gms.permission.AD_ID',
-  'android.permission.ACCESS_ADSERVICES_AD_ID', 'android.permission.ACCESS_ADSERVICES_ATTRIBUTION', 'android.permission.ACCESS_ADSERVICES_TOPICS',
+  // The AdMob SDK's Privacy Sandbox permissions (Topics, Attribution Reporting) are blocked in app.json: Topics is
+  // interest-based, which ads for children must never be (Google Play Families policy).
   'com.ynotstudio.mirrormaze.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
 ]);
 
@@ -58,9 +59,10 @@ function checkSource() {
   const games = plugin('./modules/google-play/app.plugin.js')?.[1]?.gamesAppId ?? '';
   report(games ? 'PASS' : 'WARN', 'Play Games project id (optional)', games || 'empty: Play Games, achievements and cloud save stay hidden');
   const blocked = new Set(app.android.blockedPermissions ?? []);
-  const needed = ['RECORD_AUDIO', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'SYSTEM_ALERT_WINDOW']
+  const needed = ['RECORD_AUDIO', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'SYSTEM_ALERT_WINDOW',
+    'ACCESS_ADSERVICES_AD_ID', 'ACCESS_ADSERVICES_ATTRIBUTION', 'ACCESS_ADSERVICES_TOPICS']
     .map(p => `android.permission.${p}`).filter(p => !blocked.has(p));
-  report(needed.length ? 'FAIL' : 'PASS', 'Unused library permissions are blocked (app.json)', needed.join(', ') || '6 blocked');
+  report(needed.length ? 'FAIL' : 'PASS', 'Unused library permissions are blocked (app.json)', needed.join(', ') || `${blocked.size} blocked`);
   const caption = /v(\d+(?:\.\d+)*)<\/GameText>/.exec(read('src/screens/Modals.tsx'))?.[1];
   report(caption && app.version.startsWith(caption) ? 'PASS' : 'WARN', 'Settings shows the release version',
     `app.json ${app.version} (versionCode ${app.android.versionCode}), Settings "v${caption}"`);
